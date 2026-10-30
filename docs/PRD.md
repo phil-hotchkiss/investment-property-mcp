@@ -13,6 +13,7 @@ Build this in milestone order and stop for review at the end of each milestone. 
 - Never copy LoanBidz branding, marketing copy, lead-form URLs, or logos into the new repo.
 - When a domain rule in this PRD is ambiguous, stop and ask. Do not invent underwriting rules.
 - Write prose (README, docs, tool descriptions, system prompts) without em dashes.
+- Follow the working agreement in `CLAUDE.md` at the repo root: Claude never merges; Phil merges every PR with a review comment, verifies fixtures under his own author line, and writes the ADRs and README in his own voice.
 
 ## Overview
 
@@ -126,7 +127,7 @@ repo/
 
 ### Tests
 
-Each calculator has worked-example fixtures that Phil verifies against a spreadsheet, plus edge cases (0% rate, IO loans, 100% vacancy, solver with no feasible price, each either-or input pair with both and neither supplied). Target 95%+ line coverage on core. Unit tests are required for every package, not only core: MCP server (schema generation, teaching errors, each tool's text summary), evals (grader, tolerance math, YAML loading), and both agents (fake-model tests described in the agent section).
+Each calculator has worked-example fixtures whose arithmetic is written out in `docs/fixtures/` and asserted in unit tests, anchored to a published reference value where one exists, plus edge cases (0% rate, IO loans, 100% vacancy, solver with no feasible price, each either-or input pair with both and neither supplied). Target 95%+ line coverage on core. Unit tests are required for every package, not only core: MCP server (schema generation, teaching errors, each tool's text summary), evals (grader, tolerance math, YAML loading), and both agents (fake-model tests described in the agent section).
 
 ## MCP server
 

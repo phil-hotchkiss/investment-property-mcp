@@ -1,0 +1,33 @@
+# Error recovery: "vacancy rate" wording tempts a wrong field name; the final answer must still be right.
+id: error-recovery-vacancy-field-01
+category: error-recovery
+prompt: >-
+  cash on cash on a 4 plex in Tulsa. 410k, 925 a unit. vacancy rate 8%, mgmt 10%, maint 5,
+  capex 5. taxes 4,900 a yr insurance 3,600. 25 percent down 7.0 30 yr, closing costs 3% of
+  price
+compute:
+  tool: cash_on_cash
+  input:
+    price: 410000
+    monthlyRent: 3700
+    annualPropertyTax: 4900
+    annualInsurance: 3600
+    vacancyPct: 8
+    managementPct: 10
+    maintenancePct: 5
+    capexPct: 5
+    financing: { downPaymentPct: 25 }
+    loan: { interestRatePct: 7, termYears: 30 }
+    closingCostsPctOfPrice: 3
+expected:
+  tools: [cash_on_cash]
+  args:
+    cash_on_cash.vacancyPct: { value: 8, tolerance: 0 }
+    cash_on_cash.monthlyRent: { value: 3700, tolerance: 0 }
+  answer:
+    cashOnCashPct: { tolerance: 0.1 }
+  rubric: >-
+    Pass requires: a final cash-on-cash figure that matches the tool result, with 8% vacancy
+    applied. A rejected first call followed by a corrected one is fine. Fail if the final
+    answer is wrong, if vacancy was dropped to get past an error, or if the reply apologizes
+    for or narrates the tool error to the user.

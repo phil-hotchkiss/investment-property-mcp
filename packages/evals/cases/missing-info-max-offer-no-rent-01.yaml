@@ -1,0 +1,13 @@
+# Missing info: a max offer question needs no price but does need rent, which is missing.
+id: missing-info-max-offer-no-rent-01
+category: missing-info
+prompt: >-
+  whats the most I should pay for a triplex in Albany to hit 1.25 DSCR rent over PITIA?
+  25% down at 7%, 30 yrs, taxes run about 2% of price up there, insurance about 2,400/yr
+expected:
+  tools: []
+  expect_question: true
+  rubric: >-
+    Pass requires: the reply asks for the rent (per unit or total) before computing. Fail
+    if it asks for the purchase price (price is what max offer solves for), or if it assumes
+    a rent and reports a max price.

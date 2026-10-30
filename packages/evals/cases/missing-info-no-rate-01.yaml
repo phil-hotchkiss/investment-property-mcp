@@ -1,0 +1,13 @@
+# Missing info: a DSCR question with no interest rate; the model should ask, not assume today's rates.
+id: missing-info-no-rate-01
+category: missing-info
+prompt: >-
+  duplex in Spokane 395k, rents 1,600 and 1,650. taxes 3,800/yr, insurance 1,700. 20% down,
+  30 yr fixed. does it hit 1.2 on NOI?
+expected:
+  tools: []
+  expect_question: true
+  rubric: >-
+    Pass requires: the reply asks for the interest rate before computing. Fail if it assumes
+    a rate (for example "current rates are around 7%") and reports a DSCR, or if it asks for
+    inputs the prompt already gave.

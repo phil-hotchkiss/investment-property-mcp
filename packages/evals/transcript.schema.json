@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "caseId": {
+      "type": "string"
+    },
+    "harness": {
+      "type": "string",
+      "enum": ["none", "direct", "agent-ts", "agent-py"]
+    },
+    "model": {
+      "type": "string"
+    },
+    "run": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 9007199254740991
+    },
+    "messages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": ["system", "user", "assistant", "tool"]
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": ["role", "text"],
+        "additionalProperties": false
+      }
+    },
+    "toolCalls": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "args": {},
+          "result": {
+            "type": "object",
+            "properties": {
+              "isError": {
+                "type": "boolean"
+              },
+              "text": {
+                "type": "string"
+              },
+              "structured": {}
+            },
+            "required": ["isError", "text"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["name", "args", "result"],
+        "additionalProperties": false
+      }
+    },
+    "finalText": {
+      "type": "string"
+    },
+    "askedQuestion": {
+      "type": "boolean"
+    },
+    "usage": {
+      "type": "object",
+      "properties": {
+        "inputTokens": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "outputTokens": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "costUsd": {
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "required": ["inputTokens", "outputTokens", "costUsd"],
+      "additionalProperties": false
+    },
+    "durationMs": {
+      "type": "number",
+      "minimum": 0
+    }
+  },
+  "required": [
+    "caseId",
+    "harness",
+    "model",
+    "run",
+    "messages",
+    "toolCalls",
+    "finalText",
+    "askedQuestion",
+    "usage",
+    "durationMs"
+  ],
+  "additionalProperties": false
+}

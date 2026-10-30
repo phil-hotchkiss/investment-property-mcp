@@ -17,6 +17,7 @@ compute:
     target: 1
 expected:
   tools: [dscr]
+  accept_question: true
   args:
     dscr.method: { value: rentToPitia }
     dscr.target: { value: 1, tolerance: 0 }

@@ -28,7 +28,7 @@ Example call: {"loanAmount": 300000, "interestRatePct": 7.25, "termYears": 30}`,
 
 Use it when the user asks whether one property covers its debt or would qualify for a DSCR loan.
 
-method is required and has no default. ${dscrMethods} If the user has not said which method applies, ask them, or pick one and state that assumption explicitly in your answer. Never present a DSCR without naming its method.
+method is required and has no default. ${dscrMethods} If the user has not said which method applies, ask them, or pick one and state that assumption explicitly in your answer. Never present a DSCR without naming its method. To report the other method, call dscr again with that method. The two are not derivable from each other: taxes and insurance reduce the numerator under noi but increase the denominator under rentToPitia.
 
 Use a different tool when there is more than one property: call portfolio_rollup once with all of them. Never call dscr per property and average the ratios; portfolio DSCR is total income over total debt service. Use deal_analysis when the user also wants cap rate, cash flow, or cash-on-cash.
 

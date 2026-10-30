@@ -59,7 +59,11 @@ export type DscrValues = {
 };
 
 export function dscr(raw: unknown): CalcResult<DscrValues> {
-  const x = parseInput(dscrInput, raw);
+  return computeDscr(parseInput(dscrInput, raw));
+}
+
+/** The math behind `dscr`, on already-parsed input. Exported so dealAnalysis reuses it. */
+export function computeDscr(x: z.output<typeof dscrInput>): CalcResult<DscrValues> {
   const fin = resolveFinancing(x.price, x.financing);
   const costs = resolvePropertyCosts(x.price, x);
   const rent = resolveRent(x);

@@ -285,8 +285,8 @@ Work in this order and stop for Phil's review after each. If the schedule slips,
 2. **M1: Core library** (days 2 to 6). Done when all seven calculators pass their fixtures, coverage on core is 95%+, CI is green, and the repo is public.
 3. **M2: MCP server** (days 7 to 9). Done when every tool works from Claude Desktop or Claude Code using the README config, and a bad-unit input returns the teaching error.
 4. **M3: Evals** (days 10 to 14). Done when 25+ cases run with one command, baseline and direct reports are generated, and the README results table is filled from a real run.
-5. **M4: TypeScript agent** (days 15 to 17). Done when `agent-ts` chats from a fresh clone, the fake-model unit tests pass in CI, and `pnpm evals --harness agent-ts` produces a report within 5 points of the direct harness per category.
-6. **M5: Python agent** (days 18 to 20). Done when `agent-py` meets the same bar as M4 and the parity table shows all three harnesses.
+5. **M4: TypeScript agent** (days 15 to 17). Done when `agent-ts` chats from a fresh clone, the fake-model unit tests pass in CI, and `pnpm evals --harness agent-ts` produces a report alongside the direct harness per category.
+6. **M5: Python agent** (days 18 to 20). Done when `agent-py` meets the same bar as M4 and the parity table shows all three harnesses side by side.
 7. **M6: README and ADRs** (day 21). Done when the README meets every required section and a stranger could run the MCP server and one agent in under five minutes.
 8. **M7: React app** (days 22 to 26). Done when both screens work, the app is deployed, PostHog events and the flag fire, and component tests pass.
 
@@ -301,4 +301,3 @@ Days are evening work sessions, not calendar days.
 - [ ] Which model to run evals against, and a monthly API budget cap. Agent harnesses triple the eval cost; confirm the cap covers `--all`.
 - [ ] Static host for the web app
 - [ ] Python agent as a separate `uv` project under `apps/agent-py`, or a top-level `pyproject.toml`? Assumed separate so the pnpm workspace stays pure.
-- [ ] Should the parity bar be a hard gate (within 5 points of direct) or a reported number only?

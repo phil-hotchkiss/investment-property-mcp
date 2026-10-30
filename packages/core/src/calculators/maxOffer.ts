@@ -1,10 +1,11 @@
 import { z } from 'zod';
+import type { MaxOfferMetrics, MaxOfferValues } from '../schemas/outputs.js';
 import { pct } from '../schemas/percent.js';
 import { resolveRent } from '../schemas/rent.js';
 import { type CalcResult, parseInput, ValidationError } from '../schemas/result.js';
 import { bisect } from '../solve/bisection.js';
 import { dealChecks, dealShape } from './cashOnCash.js';
-import { computeDealAnalysis, type DealAnalysisValues } from './dealAnalysis.js';
+import { computeDealAnalysis } from './dealAnalysis.js';
 
 const TOLERANCE = 1;
 const targetNames = ['minDscr', 'minCashOnCashPct', 'minMonthlyCashFlow'] as const;
@@ -62,19 +63,6 @@ export const maxOfferInput = z
   });
 
 export type MaxOfferInput = z.input<typeof maxOfferInput>;
-
-/** dealAnalysis values; the three DSCR fields are absent when no dscrMethod was given. */
-export type MaxOfferMetrics = Omit<DealAnalysisValues, 'dscr' | 'dscrMethod' | 'dscrPasses'> &
-  Partial<Pick<DealAnalysisValues, 'dscr' | 'dscrMethod' | 'dscrPasses'>>;
-
-export type MaxOfferValues = {
-  /** Highest whole-dollar price meeting every target. null when infeasible. */
-  maxPrice: number | null;
-  /** Target(s) that fail just above maxPrice, comma separated. null when the upper bound was hit. */
-  bindingConstraint: string | null;
-  metricsAtMaxPrice: MaxOfferMetrics | null;
-  feasible: boolean;
-};
 
 export function maxOffer(raw: unknown): CalcResult<MaxOfferValues> {
   const x = parseInput(maxOfferInput, raw);

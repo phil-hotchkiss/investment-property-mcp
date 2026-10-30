@@ -1,10 +1,11 @@
 import { z } from 'zod';
+import type { DealAnalysisValues, StressTestValues } from '../schemas/outputs.js';
 import { money } from '../schemas/money.js';
 import { pct } from '../schemas/percent.js';
 import { type CalcResult, parseInput } from '../schemas/result.js';
 import { bisect } from '../solve/bisection.js';
 import { dealChecks } from './cashOnCash.js';
-import { computeDealAnalysis, dealAnalysisShape, type DealAnalysisValues } from './dealAnalysis.js';
+import { computeDealAnalysis, dealAnalysisShape } from './dealAnalysis.js';
 
 function range(field: string, value: (name: string) => z.ZodType<number>, unit: string) {
   return z
@@ -69,35 +70,6 @@ export const stressTestInput = z
 
 export type StressTestInput = z.input<typeof stressTestInput>;
 type Parsed = z.output<typeof stressTestInput>;
-
-export type StressPoint = {
-  value: number;
-  dscr: number | null;
-  monthlyCashFlow: number;
-  /** DSCR meets dscrTarget. */
-  passes: boolean;
-};
-
-export type Sweep = {
-  points: StressPoint[];
-  /** Input value where each metric crosses its threshold; null when not crossed in the range. */
-  breakEven: { dscrAtTarget: number | null; cashFlowZero: number | null };
-};
-
-export type StressTestValues = {
-  base: DealAnalysisValues;
-  vacancyPctRange?: Sweep;
-  interestRatePctRange?: Sweep;
-  monthlyRentRange?: Sweep;
-  operatingExpensesChangePctRange?: Sweep;
-  /** Present when both vacancyPctRange and interestRatePctRange are given. dscr[i][j] is rows[i], cols[j]. */
-  grid?: {
-    rows: number[];
-    cols: number[];
-    dscr: (number | null)[][];
-    monthlyCashFlow: number[][];
-  };
-};
 
 const apply: Record<RangeKey, (x: Parsed, v: number) => Parsed> = {
   vacancyPctRange: (x, v) => ({ ...x, vacancyPct: v }),

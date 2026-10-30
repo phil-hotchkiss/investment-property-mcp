@@ -4,6 +4,7 @@ export * from './schemas/money.js';
 export * from './schemas/percent.js';
 export * from './schemas/eitherOr.js';
 export * from './schemas/result.js';
+export * from './schemas/outputs.js';
 export * from './schemas/financing.js';
 export * from './schemas/loan.js';
 export * from './schemas/property.js';

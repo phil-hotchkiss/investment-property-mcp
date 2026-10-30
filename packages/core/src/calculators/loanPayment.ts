@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { LoanPaymentValues } from '../schemas/outputs.js';
 import { loan } from '../schemas/loan.js';
 import { money } from '../schemas/money.js';
 import { type CalcResult, parseInput } from '../schemas/result.js';
@@ -26,17 +27,6 @@ export const loanPaymentInput = loan
   });
 
 export type LoanPaymentInput = z.input<typeof loanPaymentInput>;
-
-export type LoanPaymentValues = {
-  monthlyPrincipalAndInterest: number;
-  monthlyInterestOnly: number;
-  /** The payment that matches `amortization`. */
-  monthlyPayment: number;
-  /** Interest paid over the full term. */
-  totalInterest: number;
-  /** Remaining balance in dollars after `balanceAtYear` years, when requested. */
-  balanceAtYear?: number;
-};
 
 export function loanPayment(raw: unknown): CalcResult<LoanPaymentValues> {
   const x = parseInput(loanPaymentInput, raw);

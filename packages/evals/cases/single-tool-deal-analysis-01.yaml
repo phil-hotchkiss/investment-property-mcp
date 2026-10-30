@@ -32,3 +32,5 @@ expected:
     dscr: { tolerance: 0.01 }
     monthlyCashFlow: { tolerance: 5 }
     cashOnCashPct: { tolerance: 0.1 }
+    loanAmount: { tolerance_pct: 1 }
+    monthlyPitia: { tolerance_pct: 1 }

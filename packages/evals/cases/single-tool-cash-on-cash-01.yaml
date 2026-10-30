@@ -30,3 +30,5 @@ expected:
   answer:
     cashOnCashPct: { tolerance: 0.1 }
     annualCashFlow: { tolerance_pct: 1 }
+    loanAmount: { tolerance_pct: 1 }
+    totalCashInvested: { tolerance_pct: 1 }

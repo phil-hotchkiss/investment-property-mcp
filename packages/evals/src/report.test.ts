@@ -99,6 +99,17 @@ describe('renderReport', () => {
     expect(md).toContain(`> offer-01 answer ${'x'.repeat(300 - 'offer-01 answer '.length)}\n`);
   });
 
+  test('runs that asked under accept_question are marked asked', () => {
+    const asked: Grade = { ...pass, toolSelection: 'na', args: 'na', answer: 'na', asked: true };
+    const md2 = renderReport([
+      summary('m', [
+        r('a', 'method-ambiguity', 'direct', 1, asked),
+        r('a', 'method-ambiguity', 'direct', 2, pass),
+      ]),
+    ]);
+    expect(md2).toContain('| a | method-ambiguity |  | - | 2/2 (asked 1) |');
+  });
+
   test('stopped runs and an all-pass report', () => {
     const md2 = renderReport([
       { ...summary('m', [r('a', 'single-tool', 'direct', 1, pass)]), stopped: 'cap' },

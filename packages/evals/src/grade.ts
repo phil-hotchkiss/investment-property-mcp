@@ -5,7 +5,12 @@ import type { Transcript } from './transcript.js';
 export type Verdict = 'pass' | 'fail' | 'na';
 export const dimensions = ['toolSelection', 'args', 'answer', 'mentions', 'question'] as const;
 export type Dimension = (typeof dimensions)[number];
-export type Grade = Record<Dimension, Verdict> & { overall: boolean; details: string[] };
+/** `asked` marks a pass through accept_question: the model asked instead of answering. */
+export type Grade = Record<Dimension, Verdict> & {
+  overall: boolean;
+  details: string[];
+  asked?: true;
+};
 
 /** What the LLM judge decided about must_mention or the rubric. See judge.ts. */
 export type JudgeVerdict = { pass: boolean; missing: string[]; reason: string };
@@ -49,15 +54,36 @@ export function grade(c: Case, t: Transcript, judge?: JudgeVerdict): Grade {
   const firstCalls = [...new Set(called)];
   const canCallTools = t.harness !== 'none';
 
+  if (e.accept_question && t.askedQuestion && called.length === 0)
+    return {
+      toolSelection: 'na',
+      args: 'na',
+      answer: 'na',
+      mentions: 'na',
+      question: 'pass',
+      overall: true,
+      details: ['question: asked, which accept_question allows'],
+      asked: true,
+    };
+
   // Tool selection
   let toolSelection: Verdict = 'na';
   if (canCallTools) {
     const want: string[] = Array.isArray(e.tools) ? e.tools : e.tools.sequence;
     const extra = firstCalls.filter((n) => !want.includes(n));
-    const missing = want.filter((n) => !firstCalls.includes(n));
+    const missing = [...new Set(want)].filter((n) => !firstCalls.includes(n));
     if (extra.length) details.push(`tools: unexpected call to ${extra.join(', ')}`);
     if (missing.length) details.push(`tools: never called ${missing.join(', ')}`);
     let ok = !extra.length && !missing.length;
+    // Multiset: a name listed n > 1 times must be called exactly n times. Once means one or more.
+    if (ok && Array.isArray(e.tools))
+      for (const n of new Set(want)) {
+        const count = (xs: string[]) => xs.filter((x) => x === n).length;
+        if (count(want) > 1 && count(called) !== count(want)) {
+          details.push(`tools: ${n} called ${count(called)} times, expected ${count(want)}`);
+          ok = false;
+        }
+      }
     if (ok && !Array.isArray(e.tools) && !isDeepStrictEqual(firstCalls, want)) {
       details.push(`tools: order ${firstCalls.join(' > ')}, expected ${want.join(' > ')}`);
       ok = false;

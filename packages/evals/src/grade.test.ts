@@ -58,6 +58,21 @@ describe('tool selection', () => {
     expect(grade(set, calls('stress_test', 'max_offer', 'max_offer')).toolSelection).toBe('pass');
   });
 
+  test('a name listed twice must be called exactly twice', () => {
+    const twice = mk({ tools: ['dscr', 'dscr'] });
+    expect(grade(twice, calls('dscr', 'dscr')).toolSelection).toBe('pass');
+    for (const n of [1, 3]) {
+      const g = grade(twice, calls(...Array<string>(n).fill('dscr')));
+      expect(g.toolSelection).toBe('fail');
+      expect(g.details).toEqual([`tools: dscr called ${n} times, expected 2`]);
+    }
+    // Names listed once keep set semantics alongside a counted one.
+    const mixed = mk({ tools: ['dscr', 'dscr', 'loan_payment'] });
+    expect(grade(mixed, calls('loan_payment', 'dscr', 'loan_payment', 'dscr')).toolSelection).toBe(
+      'pass',
+    );
+  });
+
   test('extra call fails and names the tool', () => {
     const g = grade(set, calls('max_offer', 'stress_test', 'dscr'));
     expect(g.toolSelection).toBe('fail');
@@ -168,6 +183,42 @@ describe('question', () => {
     const g = grade(c, tr({ askedQuestion: true, toolCalls: [call('dscr')] }));
     expect(g.question).toBe('fail');
     expect(g.details).toContain('question: called dscr instead of asking');
+  });
+});
+
+describe('accept_question', () => {
+  const c = mk({ tools: ['dscr'], answer: { dscr: { value: 1.3 } }, accept_question: true });
+
+  test('asking without tools passes, other dimensions na, marked asked', () => {
+    const g = grade(c, tr({ askedQuestion: true }), { pass: false, missing: [], reason: 'x' });
+    expect(g).toEqual({
+      toolSelection: 'na',
+      args: 'na',
+      answer: 'na',
+      mentions: 'na',
+      question: 'pass',
+      overall: true,
+      details: ['question: asked, which accept_question allows'],
+      asked: true,
+    });
+  });
+
+  test('answering is still graded normally', () => {
+    const g = grade(c, tr({ toolCalls: [call('dscr')], finalText: 'DSCR 1.30' }));
+    expect(g).toMatchObject({
+      toolSelection: 'pass',
+      answer: 'pass',
+      question: 'na',
+      overall: true,
+    });
+    expect(g.asked).toBeUndefined();
+  });
+
+  test('without it, asking still fails as before', () => {
+    const strict = mk({ tools: ['dscr'], answer: { dscr: { value: 1.3 } } });
+    const g = grade(strict, tr({ askedQuestion: true }));
+    expect(g).toMatchObject({ toolSelection: 'fail', answer: 'fail', overall: false });
+    expect(g.details).toContain('answer: asked instead of answering');
   });
 });
 

@@ -254,7 +254,9 @@ export async function main(
   const graded: GradedRun[] = [];
   for (const [c, t] of transcripts) {
     let verdict: JudgeResult | undefined;
-    if (useJudge && needsJudge(c) && !stopped)
+    // An accepted question grades without the judge, so do not pay for one.
+    const asked = grade(c, t).asked;
+    if (useJudge && needsJudge(c) && !stopped && !asked)
       try {
         verdict = await judge({ case: c, transcript: t, model: judgeModel, client });
         judgeTotals.calls++;
@@ -267,7 +269,7 @@ export async function main(
         stopped = `judge: ${(e as Error).message}`;
       }
     const g = grade(c, t, verdict);
-    if (useJudge && needsJudge(c) && !verdict) g.details.push('mentions: judge skipped');
+    if (useJudge && needsJudge(c) && !verdict && !asked) g.details.push('mentions: judge skipped');
     graded.push({
       caseId: c.id,
       category: c.category,

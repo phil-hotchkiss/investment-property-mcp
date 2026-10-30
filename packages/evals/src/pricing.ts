@@ -7,6 +7,9 @@ export const pricing: Record<string, { input: number; output: number }> = {
   'claude-sonnet-5-5': { input: 2, output: 10 },
 };
 
+/** When the table above was last checked. Printed in the report header. */
+export const PRICING_DATE = '2026-10-30';
+
 export const DEFAULT_MODEL = 'claude-haiku-4-5';
 export const DEFAULT_JUDGE_MODEL = 'claude-sonnet-5-5';
 

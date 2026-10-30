@@ -1,0 +1,202 @@
+import { describe, expect, test } from 'vitest';
+import { resolveCase } from './cases.js';
+import { extractNumbers, grade, within } from './grade.js';
+import { dscrArgs } from './test/fake.js';
+import type { Transcript } from './transcript.js';
+
+const mk = (expected: Record<string, unknown>) =>
+  resolveCase({ id: 'c', category: 'single-tool', prompt: 'p', expected });
+
+const call = (name: string, args: unknown = {}) => ({
+  name,
+  args,
+  result: { isError: false, text: '' },
+});
+
+const tr = (over: Partial<Transcript> = {}): Transcript => ({
+  caseId: 'c',
+  harness: 'direct',
+  model: 'claude-haiku-4-5',
+  run: 1,
+  messages: [],
+  toolCalls: [],
+  finalText: '',
+  askedQuestion: false,
+  usage: { inputTokens: 0, outputTokens: 0, costUsd: 0 },
+  durationMs: 0,
+  ...over,
+});
+
+describe('extractNumbers', () => {
+  test.each([
+    ['The max offer is $392,859.', [392859]],
+    ['about 393k', [393000]],
+    ['7.25% for 30-year', [7.25, 30]],
+    ['DSCR 1.23', [1.23]],
+    ['cash flow -$212 a month', [-212]],
+    ['vacancy 6-8%', [6, 8]],
+    ['5km and 3 kids', [5, 3]],
+    ['no numbers', []],
+  ])('%s', (text, numbers) => expect(extractNumbers(text)).toEqual(numbers));
+});
+
+describe('within', () => {
+  test('absolute, percent, and default exact', () => {
+    expect(within(393000, 392859, { tolerance_pct: 1 })).toBe(true);
+    expect(within(400000, 392859, { tolerance_pct: 1 })).toBe(false);
+    expect(within(1.24, 1.23, { tolerance: 0.01 })).toBe(true);
+    expect(within(1.24, 1.23, {})).toBe(false);
+  });
+});
+
+describe('tool selection', () => {
+  const set = mk({ tools: ['max_offer', 'stress_test'] });
+  const seq = mk({ tools: { sequence: ['max_offer', 'stress_test'] } });
+  const calls = (...names: string[]) => tr({ toolCalls: names.map((n) => call(n)) });
+
+  test('set passes in any order, repeats allowed', () => {
+    expect(grade(set, calls('stress_test', 'max_offer', 'max_offer')).toolSelection).toBe('pass');
+  });
+
+  test('extra call fails and names the tool', () => {
+    const g = grade(set, calls('max_offer', 'stress_test', 'dscr'));
+    expect(g.toolSelection).toBe('fail');
+    expect(g.details).toContain('tools: unexpected call to dscr');
+    expect(g.overall).toBe(false);
+  });
+
+  test('missing call fails', () => {
+    expect(grade(set, calls('max_offer')).details).toContain('tools: never called stress_test');
+  });
+
+  test('sequence checks order of first calls', () => {
+    expect(grade(seq, calls('max_offer', 'stress_test', 'max_offer')).toolSelection).toBe('pass');
+    const g = grade(seq, calls('stress_test', 'max_offer'));
+    expect(g.toolSelection).toBe('fail');
+    expect(g.details[0]).toMatch(/order stress_test > max_offer/);
+  });
+
+  test('empty expected tools passes only with no calls', () => {
+    const none = mk({});
+    expect(grade(none, tr()).toolSelection).toBe('pass');
+    expect(grade(none, calls('dscr')).toolSelection).toBe('fail');
+  });
+
+  test('na for the none harness, as are args', () => {
+    const c = mk({ tools: ['dscr'], args: { 'dscr.price': { value: 400000 } } });
+    const g = grade(c, tr({ harness: 'none' }));
+    expect(g).toMatchObject({ toolSelection: 'na', args: 'na', overall: true });
+  });
+});
+
+describe('args', () => {
+  const c = mk({
+    tools: ['dscr'],
+    args: {
+      'dscr.loan.interestRatePct': { value: 7.25 },
+      'dscr.monthlyRent': { value: 3150, tolerance_pct: 2 },
+      'dscr.method': { value: 'rentToPitia' },
+    },
+  });
+
+  test('nested path, tolerance_pct, and exact enum pass', () => {
+    expect(grade(c, tr({ toolCalls: [call('dscr', dscrArgs)] })).args).toBe('pass');
+  });
+
+  test('wrong number, wrong enum, and missing field fail with messages', () => {
+    const bad = { ...dscrArgs, method: 'noi', loan: { termYears: 30 }, monthlyRent: 2000 };
+    const g = grade(c, tr({ toolCalls: [call('dscr', bad)] }));
+    expect(g.args).toBe('fail');
+    expect(g.details).toEqual([
+      'args: dscr.loan.interestRatePct missing',
+      'args: dscr.monthlyRent got 2000, expected 3150',
+      'args: dscr.method got "noi", expected "rentToPitia"',
+    ]);
+  });
+
+  test('uses the first call to the tool; no call fails', () => {
+    const first = { ...dscrArgs, method: 'noi' };
+    expect(grade(c, tr({ toolCalls: [call('dscr', first), call('dscr', dscrArgs)] })).args).toBe(
+      'fail',
+    );
+    expect(grade(c, tr()).details).toContain('args: dscr.method no call to dscr');
+  });
+
+  test('na when no args expected', () => {
+    expect(grade(mk({}), tr()).args).toBe('na');
+  });
+});
+
+describe('answer', () => {
+  const c = mk({ answer: { maxPrice: { value: 392859, tolerance_pct: 1 } } });
+
+  test('any number in the text within tolerance passes', () => {
+    expect(grade(c, tr({ finalText: 'Offer up to 393k.' })).answer).toBe('pass');
+    expect(grade(c, tr({ finalText: 'Offer up to $392,859.' })).answer).toBe('pass');
+  });
+
+  test('fails when no number matches', () => {
+    const g = grade(c, tr({ finalText: 'Offer up to $350,000.' }));
+    expect(g.answer).toBe('fail');
+    expect(g.details).toEqual(['answer: maxPrice expected 392859, not found in final text']);
+  });
+
+  test('asking instead of answering fails answer, even with no answer expected', () => {
+    const g = grade(mk({}), tr({ askedQuestion: true, finalText: 'Which method?' }));
+    expect(g).toMatchObject({ answer: 'fail', question: 'na', overall: false });
+    expect(g.details).toContain('answer: asked instead of answering');
+  });
+
+  test('na when no answer expected and none asked', () => {
+    expect(grade(mk({}), tr()).answer).toBe('na');
+  });
+});
+
+describe('question', () => {
+  const c = mk({ expect_question: true });
+
+  test('passes when it asked and called nothing', () => {
+    const g = grade(c, tr({ askedQuestion: true }));
+    expect(g).toMatchObject({ question: 'pass', answer: 'na', overall: true });
+  });
+
+  test('fails when it did not ask', () => {
+    expect(grade(c, tr()).details).toContain('question: did not ask');
+  });
+
+  test('fails when it called a tool', () => {
+    const g = grade(c, tr({ askedQuestion: true, toolCalls: [call('dscr')] }));
+    expect(g.question).toBe('fail');
+    expect(g.details).toContain('question: called dscr instead of asking');
+  });
+});
+
+describe('mentions', () => {
+  const c = mk({ must_not_mention: ['Average DSCR'], must_mention: ['DSCR method'] });
+
+  test('must_not_mention is a case-insensitive substring check', () => {
+    const g = grade(c, tr({ finalText: 'The average dscr is 1.3' }));
+    expect(g.mentions).toBe('fail');
+    expect(g.details).toContain('mentions: must not mention "Average DSCR"');
+  });
+
+  test('passes without the judge when nothing banned appears', () => {
+    expect(grade(c, tr({ finalText: 'Portfolio DSCR 1.3' })).mentions).toBe('pass');
+  });
+
+  test('judge verdict folds in', () => {
+    const ok = { pass: true, missing: [], reason: 'fine' };
+    const bad = { pass: false, missing: ['DSCR method'], reason: 'no method stated' };
+    expect(grade(c, tr(), ok).mentions).toBe('pass');
+    const g = grade(c, tr(), bad);
+    expect(g.mentions).toBe('fail');
+    expect(g.details).toContain('mentions: judge failed (missing: DSCR method): no method stated');
+    expect(grade(mk({}), tr(), { ...bad, missing: [] }).details).toContain(
+      'mentions: judge failed: no method stated',
+    );
+  });
+
+  test('na with no must_not_mention and no judge', () => {
+    expect(grade(mk({}), tr()).mentions).toBe('na');
+  });
+});

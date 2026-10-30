@@ -1,0 +1,44 @@
+name: Evals
+# Manual only: every run spends real API money.
+on:
+  workflow_dispatch:
+    inputs:
+      harnesses:
+        description: Comma-separated harnesses
+        default: none,direct
+      model:
+        description: Agent model under test
+        default: claude-haiku-4-5
+      runs:
+        description: Runs per case per harness
+        default: '3'
+      cases:
+        description: Case id or glob
+        default: '*'
+jobs:
+  evals:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Run evals
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          EVAL_MAX_USD: ${{ vars.EVAL_MAX_USD || '5' }}
+          EVAL_MODEL: ${{ inputs.model }}
+          HARNESSES: ${{ inputs.harnesses }}
+          RUNS: ${{ inputs.runs }}
+          CASES: ${{ inputs.cases }}
+        run: pnpm evals --harness "$HARNESSES" --runs "$RUNS" --cases "$CASES" --out results
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eval-results
+          path: results
+          if-no-files-found: ignore

@@ -112,6 +112,12 @@ repo/
 - Max offer solves for price numerically (bisection) because taxes and closing costs can scale with price. It accepts one or more targets (min DSCR, min CoC, min monthly cash flow) and returns the highest price that satisfies all of them, naming the binding constraint.
 - Stress test varies vacancy, interest rate, rent, and expenses over caller-provided ranges and reports the break-even point for each against the caller's target.
 - Portfolio DSCR = total income divided by total debt service across properties. Never average the per-property ratios; that is a known agent mistake and an eval case.
+- Rent basis for DSCR: `monthlyRent` is required and is the lease or expected rent. `monthlyMarketRent` is optional. `rentBasis` selects `lease`, `market`, or `lesser`. When `monthlyMarketRent` is given and `rentBasis` is omitted, use `lesser` and say so in assumptions; when only `monthlyRent` is given, use it.
+- Property tax and insurance accept either a flat annual dollar amount or a percent of price, never both for the same field: `annualPropertyTax` or `propertyTaxPctOfPrice`; `annualInsurance` or `insurancePctOfPrice`. Percent-of-price inputs scale inside the max offer solver; flat inputs do not. Assumptions state which form was used.
+- Financing accepts exactly one of `downPaymentPct`, `ltvPct`, `downPaymentAmount`, or `loanAmount`. Results always report all four derived values. Zero or more than one supplied is a validation error that lists the four options.
+- Loans carry `amortization`: `amortizing` (default, stated in assumptions) or `interestOnly`. DSCR, cash flow, and the solver all use the payment that matches.
+- HOA is `monthlyHoa`, optional, default 0. PITIA is the output name throughout; when HOA is 0 the assumptions say "no HOA".
+- Cash invested for cash-on-cash = down payment + closing costs + rehab + reserves. Closing costs accept `closingCosts` (dollars) or `closingCostsPctOfPrice`. Reserves accept `reservesAmount` (dollars) or `reservesMonthsOfPitia`. Each pair is either-or.
 
 ### Results always include
 
@@ -120,7 +126,7 @@ repo/
 
 ### Tests
 
-Each calculator has worked-example fixtures that Phil verifies against a spreadsheet, plus edge cases (0% rate, IO loans, 100% vacancy, solver with no feasible price). Target 95%+ line coverage on core.
+Each calculator has worked-example fixtures that Phil verifies against a spreadsheet, plus edge cases (0% rate, IO loans, 100% vacancy, solver with no feasible price, each either-or input pair with both and neither supplied). Target 95%+ line coverage on core. Unit tests are required for every package, not only core: MCP server (schema generation, teaching errors, each tool's text summary), evals (grader, tolerance math, YAML loading), and both agents (fake-model tests described in the agent section).
 
 ## MCP server
 
@@ -294,10 +300,9 @@ Days are evening work sessions, not calendar days.
 
 ## Open questions
 
+- [x] Resolved in M0 review (Oct 30, 2026): rent basis, tax and insurance input forms, financing inputs, interest-only loans, HOA, cash-on-cash basis. See Domain rules.
 - [ ] Repo and package name ("Rental Deal Math Toolkit" is a working title; repo is `investment-property-mcp` for now)
 - [ ] Which five calculators exist today, and are any formulas lender-specific in a way that should not ship?
-- [ ] DSCR rent input: lease rent, market rent, or the lesser of the two? Default and naming to confirm.
-- [ ] Property tax: fixed annual amount, percent of price, or both? This changes the max offer solver.
 - [ ] Which model to run evals against, and a monthly API budget cap. Agent harnesses triple the eval cost; confirm the cap covers `--all`.
 - [ ] Static host for the web app
 - [ ] Python agent as a separate `uv` project under `apps/agent-py`, or a top-level `pyproject.toml`? Assumed separate so the pnpm workspace stays pure.

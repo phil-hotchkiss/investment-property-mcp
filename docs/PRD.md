@@ -208,6 +208,8 @@ expected:
   must_mention: ["DSCR method"]
 ```
 
+Cases may carry an optional `evidence` field pointing at an entry in `docs/observed-failures.md`; the eval report lists it next to the case.
+
 Expected numeric answers are computed by calling core directly, never typed by hand.
 
 ### Categories (25 to 30 cases total)

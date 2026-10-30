@@ -12,7 +12,8 @@
     "typecheck": "pnpm -r typecheck",
     "test": "vitest run --coverage",
     "build": "pnpm -r build",
-    "evals": "pnpm --filter @rental-deal-math/evals start"
+    "evals": "pnpm --filter @rental-deal-math/evals start",
+    "evals:env": "python3 scripts/keychain.py env ANTHROPIC_API_KEY"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

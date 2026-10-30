@@ -13,6 +13,7 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: python3 -m unittest scripts/secrets_test.py
       - run: pnpm lint
       - run: pnpm format
       # mcp-server typechecks and tests against core's built dist, so build first.

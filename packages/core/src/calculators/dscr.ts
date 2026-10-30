@@ -18,25 +18,30 @@ const methods = {
   noi: 'DSCR method noi: annual net operating income divided by annual debt service (principal and interest).',
 };
 
+/** One property's fields without method and target; portfolioRollup reuses it. */
+export const dscrPropertyShape = {
+  price: price.describe('Purchase price in US dollars.'),
+  ...rentShape,
+  ...propertyCostsShape,
+  financing,
+  loan,
+  ...operatingExpensesShape,
+};
+
+export const dscrMethod = z
+  .enum(['rentToPitia', 'noi'])
+  .describe(
+    'Required, no default. rentToPitia: gross monthly rent / PITIA, the common DSCR-loan method. noi: annual NOI / annual debt service, the traditional commercial method.',
+  );
+
+export const dscrTarget = z
+  .number()
+  .positive()
+  .default(1.25)
+  .describe('Minimum DSCR ratio to pass, e.g. 1.25. A ratio, not a percent. Default 1.25.');
+
 export const dscrInput = z
-  .object({
-    price: price.describe('Purchase price in US dollars.'),
-    ...rentShape,
-    ...propertyCostsShape,
-    financing,
-    loan,
-    method: z
-      .enum(['rentToPitia', 'noi'])
-      .describe(
-        'Required, no default. rentToPitia: gross monthly rent / PITIA, the common DSCR-loan method. noi: annual NOI / annual debt service, the traditional commercial method.',
-      ),
-    target: z
-      .number()
-      .positive()
-      .default(1.25)
-      .describe('Minimum DSCR ratio to pass, e.g. 1.25. A ratio, not a percent. Default 1.25.'),
-    ...operatingExpensesShape,
-  })
+  .object({ ...dscrPropertyShape, method: dscrMethod, target: dscrTarget })
   .superRefine((v, ctx) => propertyCostsChecks.forEach((check) => check(v, ctx)));
 
 export type DscrInput = z.input<typeof dscrInput>;

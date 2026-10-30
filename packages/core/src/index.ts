@@ -17,3 +17,4 @@ export * from './calculators/dealAnalysis.js';
 export * from './solve/bisection.js';
 export * from './calculators/maxOffer.js';
 export * from './calculators/stressTest.js';
+export * from './calculators/portfolioRollup.js';

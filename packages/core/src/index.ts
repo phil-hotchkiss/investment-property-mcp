@@ -11,3 +11,6 @@ export * from './schemas/rent.js';
 export * from './schemas/expenses.js';
 export * from './calculators/loanPayment.js';
 export * from './calculators/dscr.js';
+export * from './schemas/cashInvested.js';
+export * from './calculators/cashOnCash.js';
+export * from './calculators/dealAnalysis.js';

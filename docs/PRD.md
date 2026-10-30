@@ -127,7 +127,7 @@ repo/
 
 ### Tests
 
-Each calculator has worked-example fixtures that Phil verifies against a spreadsheet, plus edge cases (0% rate, IO loans, 100% vacancy, solver with no feasible price, each either-or input pair with both and neither supplied). Target 95%+ line coverage on core. Unit tests are required for every package, not only core: MCP server (schema generation, teaching errors, each tool's text summary), evals (grader, tolerance math, YAML loading), and both agents (fake-model tests described in the agent section).
+Each calculator has worked-example fixtures whose arithmetic is written out in `docs/fixtures/` and asserted in unit tests, anchored to a published reference value where one exists, plus edge cases (0% rate, IO loans, 100% vacancy, solver with no feasible price, each either-or input pair with both and neither supplied). Target 95%+ line coverage on core. Unit tests are required for every package, not only core: MCP server (schema generation, teaching errors, each tool's text summary), evals (grader, tolerance math, YAML loading), and both agents (fake-model tests described in the agent section).
 
 ## MCP server
 

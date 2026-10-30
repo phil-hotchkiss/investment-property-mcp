@@ -27,6 +27,7 @@ import {
 } from '@rental-deal-math/core';
 import { z } from 'zod';
 import { descriptions, type ToolName } from './descriptions.js';
+import { teachingError } from './errors.js';
 import * as summary from './summaries.js';
 
 const { version } = createRequire(import.meta.url)('../package.json') as { version: string };
@@ -60,7 +61,12 @@ function registerCalculatorTool<T>(
       annotations,
     },
     (args) => {
-      const result = compute(args);
+      let result: CalcResult<T>;
+      try {
+        result = compute(args);
+      } catch (e) {
+        return teachingError(e);
+      }
       return {
         structuredContent: result,
         content: [{ type: 'text', text: summarize(result) }],

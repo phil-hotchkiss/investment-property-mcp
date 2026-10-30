@@ -56,7 +56,8 @@ function registerCalculatorTool<T>(
     name,
     {
       description: descriptions[name],
-      inputSchema: z.looseObject({}).meta(json),
+      // additionalProperties false: core ignores unknown fields, so tell the model not to send them.
+      inputSchema: z.looseObject({}).meta({ ...json, additionalProperties: false }),
       outputSchema: calcResultSchema(output),
       annotations,
     },

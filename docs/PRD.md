@@ -13,6 +13,7 @@ Build this in milestone order and stop for review at the end of each milestone. 
 - Never copy LoanBidz branding, marketing copy, lead-form URLs, or logos into the new repo.
 - When a domain rule in this PRD is ambiguous, stop and ask. Do not invent underwriting rules.
 - Write prose (README, docs, tool descriptions, system prompts) without em dashes.
+- Follow the working agreement in `CLAUDE.md` at the repo root: Claude never merges; Phil merges every PR with a review comment, verifies fixtures under his own author line, and writes the ADRs and README in his own voice.
 
 ## Overview
 

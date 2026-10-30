@@ -76,7 +76,8 @@ export function renderReport(summaries: Summary[]): string {
     ...summaries.filter((s) => s.stopped).map((s) => `- Stopped early (${s.model}): ${s.stopped}`),
     '',
     '`na` dimensions do not count against a run. The `none` harness cannot call tools, so its tool',
-    'selection and arguments are always `na`.',
+    'selection and arguments are always `na`. `asked n` counts runs that asked a question where',
+    'the case accepts one (`accept_question`).',
     '',
     '## Pass rate by category',
     '',
@@ -123,7 +124,9 @@ export function renderReport(summaries: Summary[]): string {
               mine.flatMap((r) => dimensions.filter((d) => r.grade[d] === 'fail')),
             );
             const passes = mine.filter((r) => r.grade.overall).length;
-            return `${passes}/${mine.length}${failed.length ? ` (${failed.join(', ')})` : ''}`;
+            const asked = mine.filter((r) => r.grade.asked).length;
+            const notes = [...failed, ...(asked ? [`asked ${asked}`] : [])];
+            return `${passes}/${mine.length}${notes.length ? ` (${notes.join(', ')})` : ''}`;
           }),
         ];
       }),

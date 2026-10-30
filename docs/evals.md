@@ -67,7 +67,7 @@ Every harness emits the same transcript, validated by `transcriptSchema` in `src
 }
 ```
 
-`askedQuestion` is a heuristic: true when there were no tool calls and the final text ends with a question mark or contains a request for information such as "could you" or "which method". The grader uses it for `question` and the asked-instead-of-answering check.
+`askedQuestion` is a heuristic: true when there were no tool calls and the final text ends with a question mark or contains a request for information such as "could you" or "which method". The grader uses it for `question`, the asked-instead-of-answering check, and `accept_question`. Nothing overrules it, including the judge.
 
 ## Grading
 
@@ -75,11 +75,13 @@ Every harness emits the same transcript, validated by `transcriptSchema` in `src
 
 | Dimension       | Rule                                                                                                                                                                          |
 | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `toolSelection` | A list in `expected.tools` is a set: the tools called must equal it, and an extra tool fails. `{ sequence }` also checks the order of first calls. An empty list passes only when no tool was called. |
+| `toolSelection` | A list in `expected.tools` is a set: the tools called must equal it, and an extra tool fails. A name listed once may be called any number of times; a name listed n > 1 times must be called exactly n times (`[dscr, dscr]` means two dscr calls). `{ sequence }` also checks the order of first calls and does not count repeats. An empty list passes only when no tool was called. |
 | `args`          | For each `tool.field` in `expected.args`, the first call to that tool. Dotted paths reach nested fields (`dscr.loan.interestRatePct`). Numbers within `tolerance` or `tolerance_pct` (default 0); anything else exact. `na` when no args are expected. |
 | `answer`        | Each key in `expected.answer` passes when any number in `finalText` is within tolerance. Asking a question when the case does not set `expect_question` fails here as "asked instead of answering". `na` when there is nothing to check. |
 | `question`      | Only when `expect_question` is true: passes when `askedQuestion` is true and no tool was called.                                                                              |
 | `mentions`      | Fails when `finalText` contains a `must_not_mention` string (case-insensitive), or when the judge fails. `na` with neither.                                                    |
+
+A case with `accept_question: true` also passes when the model asked (`askedQuestion` true, no tool calls): `question` is pass, every other dimension is `na`, no judge call is made, and the per-case table counts the run as `asked n`. When the model answers instead, the case grades as if the flag were absent.
 
 The `none` harness cannot call tools, so its `toolSelection` and `args` are always `na`. The report says so in its header.
 

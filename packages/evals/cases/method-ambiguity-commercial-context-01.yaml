@@ -22,6 +22,7 @@ compute:
     target: 1.25
 expected:
   tools: [dscr]
+  accept_question: true
   args:
     dscr.method: { value: noi }
     dscr.loan.termYears: { value: 25, tolerance: 0 }

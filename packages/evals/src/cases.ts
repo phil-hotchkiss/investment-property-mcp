@@ -33,14 +33,36 @@ const tolerances = {
   tolerance_pct: z.number().nonnegative().optional(),
 };
 
+const input = z.record(z.string(), z.unknown());
+const computeBlock = z.strictObject({ tool: toolName, input });
+const computeList = z
+  .array(z.strictObject({ key: z.string().regex(/^\w+$/), tool: toolName, input }))
+  .min(1);
+/**
+ * One block fills every answer key; a list of keyed blocks fills answers named `<key>.<path>`.
+ * Picks the schema by shape rather than z.union, whose error hides which field was wrong.
+ */
+const compute = z
+  .unknown()
+  .transform((v, ctx): z.infer<typeof computeBlock | typeof computeList> => {
+    const r = (Array.isArray(v) ? computeList : computeBlock).safeParse(v);
+    if (!r.success) {
+      for (const issue of r.error.issues)
+        ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path, input: v });
+      return z.NEVER;
+    }
+    return r.data;
+  });
+
 export const caseSchema = z.strictObject({
   id: z.string().regex(/^[a-z0-9-]+$/, 'lowercase letters, digits, and dashes'),
   category: z.enum(categories),
   prompt: z.string().min(1),
   evidence: z.string().optional(),
-  compute: z.strictObject({ tool: toolName, input: z.record(z.string(), z.unknown()) }).optional(),
+  compute: compute.optional(),
   expected: z.strictObject({
     tools: z
+      // A list is a set, except a name listed n > 1 times must be called exactly n times.
       .union([z.array(toolName), z.strictObject({ sequence: z.array(toolName) })])
       .default([]),
     args: z
@@ -56,6 +78,9 @@ export const caseSchema = z.strictObject({
     must_mention: z.array(z.string()).default([]),
     must_not_mention: z.array(z.string()).default([]),
     expect_question: z.literal(true).optional(),
+    // Asking without calling tools is also a pass, for prompts where a stated assumption or a
+    // question are both acceptable.
+    accept_question: z.boolean().optional(),
     rubric: z.string().optional(),
   }),
 });
@@ -71,13 +96,23 @@ export function resolveCase(raw: unknown): Case {
     throw new Error(
       `answer ${missing.map(([k]) => k).join(', ')} has no value and the case has no compute block`,
     );
-  const { values } = coreTools[c.compute.tool](c.compute.input);
+  const blocks = Array.isArray(c.compute) ? c.compute : [{ ...c.compute, key: undefined }];
+  const results = new Map(blocks.map((b) => [b.key, coreTools[b.tool](b.input).values]));
   for (const [key, a] of missing) {
-    const v = key.split('.').reduce<unknown>((o, k) => (o as Record<string, unknown>)?.[k], values);
+    const dot = key.indexOf('.');
+    const [blockKey, path] = !Array.isArray(c.compute)
+      ? [undefined, key]
+      : dot < 0
+        ? [key, '']
+        : [key.slice(0, dot), key.slice(dot + 1)];
+    const block = blocks.find((b) => b.key === blockKey);
+    if (!block || path === '')
+      throw new Error(`answer ${key}: must be <key>.<path> naming a compute block`);
+    const v = path
+      .split('.')
+      .reduce<unknown>((o, k) => (o as Record<string, unknown>)?.[k], results.get(blockKey));
     if (typeof v !== 'number')
-      throw new Error(
-        `answer ${key}: ${c.compute.tool} returned ${JSON.stringify(v)}, not a number`,
-      );
+      throw new Error(`answer ${key}: ${block.tool} returned ${JSON.stringify(v)}, not a number`);
     a.value = v;
   }
   return c;

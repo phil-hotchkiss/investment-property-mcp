@@ -20,7 +20,8 @@ beforeAll(async () => {
 type Text = { type: 'text'; text: string };
 const call = async (name: string, args: Record<string, unknown>) => {
   const r = (await client.callTool({ name, arguments: args })) as CallToolResult;
-  return { ...r, text: (r.content as Text[])[0]?.text ?? '' };
+  const blocks = r.content as Text[];
+  return { ...r, text: blocks[0]?.text ?? '', blocks };
 };
 
 /** The example call embedded in each description. */
@@ -94,6 +95,10 @@ describe('each tool', () => {
       expect(r.isError).toBeFalsy();
       expect(r.structuredContent).toEqual(tools[name].fn(example(name)));
       expect(r.text).toContain(tools[name].headline);
+      expect(r.blocks).toHaveLength(2);
+      const [header, json] = (r.blocks[1]?.text ?? '').split('\n');
+      expect(header).toBe('All computed values:');
+      expect(JSON.parse(json ?? '')).toEqual(tools[name].fn(example(name)).values);
       const lines = r.text.split('\n');
       expect(lines.length).toBeGreaterThanOrEqual(2);
       expect(lines.length).toBeLessThanOrEqual(4);

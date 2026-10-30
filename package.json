@@ -11,7 +11,8 @@
     "format:write": "prettier --write .",
     "typecheck": "pnpm -r typecheck",
     "test": "vitest run --coverage",
-    "build": "pnpm -r build"
+    "build": "pnpm -r build",
+    "evals": "pnpm --filter @rental-deal-math/evals start"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

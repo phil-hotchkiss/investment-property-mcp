@@ -42,22 +42,16 @@ const annotations = {
 function registerCalculatorTool<T>(
   server: McpServer,
   name: ToolName,
-  input: z.ZodType,
+  input: z.ZodObject,
   output: z.ZodType,
   compute: (raw: unknown) => CalcResult<T>,
   summarize: (r: CalcResult<T>) => string,
 ) {
-  // The SDK validates arguments before the handler runs and words failures its own way. So the
-  // SDK gets core's JSON Schema to advertise but accepts any object, and core's parse inside the
-  // handler reports every validation failure.
-  const json = z.toJSONSchema(input, { io: 'input', target: 'draft-7' });
-  delete json.$schema;
   server.registerTool(
     name,
     {
       description: descriptions[name],
-      // additionalProperties false: core ignores unknown fields, so tell the model not to send them.
-      inputSchema: z.looseObject({}).meta({ ...json, additionalProperties: false }),
+      inputSchema: input,
       outputSchema: calcResultSchema(output),
       annotations,
     },
@@ -66,6 +60,8 @@ function registerCalculatorTool<T>(
       try {
         result = compute(args);
       } catch (e) {
+        // The SDK has already validated against the schema. This catches ValidationError from
+        // core's resolvers (financing range checks), which need cross-field context.
         return teachingError(e);
       }
       return {

@@ -101,15 +101,15 @@ describe('each tool', () => {
   );
 });
 
-describe('teaching errors', () => {
+describe('input errors', () => {
   const dscrArgs = example('dscr');
 
-  test('a decimal rate is a tool error that says what was meant', async () => {
+  test('a decimal rate is a tool error that says what was meant and where', async () => {
     const r = await call('dscr', { ...dscrArgs, loan: { interestRatePct: 0.0725, termYears: 30 } });
     expect(r.isError).toBe(true);
+    expect(r.text).toContain('interestRatePct was 0.0725.');
     expect(r.text).toContain('did you mean 7.25');
-    expect(r.text).toContain('loan.interestRatePct: interestRatePct was 0.0725.');
-    expect(r.text.split('\n').at(-1)).toBe('Fix the input and call the tool again.');
+    expect(r.text).toContain('at loan.interestRatePct');
   });
 
   test('a missing DSCR method is a tool error naming method', async () => {
@@ -117,13 +117,27 @@ describe('teaching errors', () => {
     delete noMethod.method;
     const r = await call('dscr', noMethod);
     expect(r.isError).toBe(true);
-    expect(r.text).toMatch(/^method: /m);
+    expect(r.text).toContain('at method');
   });
 
-  test('errors core raises after parsing are formatted the same way', async () => {
+  test('giving both tax forms is a tool error naming both fields', async () => {
+    const r = await call('dscr', { ...dscrArgs, propertyTaxPctOfPrice: 1.2 });
+    expect(r.isError).toBe(true);
+    expect(r.text).toContain('annualPropertyTax');
+    expect(r.text).toContain('propertyTaxPctOfPrice');
+  });
+
+  test('giving no financing form is a tool error naming financing', async () => {
+    const r = await call('dscr', { ...dscrArgs, financing: {} });
+    expect(r.isError).toBe(true);
+    expect(r.text).toContain('financing');
+  });
+
+  test('errors core raises after parsing are formatted with a fix line', async () => {
     const r = await call('dscr', { ...dscrArgs, financing: { loanAmount: 500000 } });
     expect(r.isError).toBe(true);
     expect(r.text).toContain('financing.loanAmount: loanAmount was 500000.');
+    expect(r.text.split('\n').at(-1)).toBe('Fix the input and call the tool again.');
   });
 
   test('unknown errors rethrow', () => {

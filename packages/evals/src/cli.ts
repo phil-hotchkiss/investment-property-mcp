@@ -7,10 +7,13 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { createServer } from '@rental-deal-math/mcp-server/server';
 import { type Case, loadCases } from './cases.js';
+import { grade } from './grade.js';
 import type { Harness, MessagesClient } from './harness/common.js';
 import { direct } from './harness/direct.js';
 import { none } from './harness/none.js';
-import { costUsd, DEFAULT_JUDGE_MODEL, DEFAULT_MODEL, pricing } from './pricing.js';
+import { JUDGE_SYSTEM, judge, type JudgeResult, needsJudge, rubricFor } from './judge.js';
+import { costUsd, DEFAULT_JUDGE_MODEL, DEFAULT_MODEL, PRICING_DATE, pricing } from './pricing.js';
+import { type GradedRun, renderReport, type Summary, writeResults } from './report.js';
 import { type HarnessName, harnessNames, type Transcript } from './transcript.js';
 
 const pkgDir = fileURLToPath(new URL('..', import.meta.url));
@@ -71,6 +74,31 @@ export function estimate(
   return { calls, inputTokens, outputTokens, costUsd: costUsd(model, inputTokens, outputTokens) };
 }
 
+/**
+ * Judge calls: one per transcript whose case needs the judge. Input is the rubric, prompt, and an
+ * answer of OUTPUT_PER_CALL tokens; output is OUTPUT_PER_CALL.
+ */
+export function estimateJudge(
+  cases: Case[],
+  selected: HarnessName[],
+  runs: number,
+  model: string,
+): Estimate {
+  const judged = cases.filter(needsJudge);
+  const calls = judged.length * selected.length * runs;
+  const inputTokens = judged.reduce(
+    (n, c) =>
+      n +
+      (Math.ceil((JUDGE_SYSTEM.length + rubricFor(c).length + c.prompt.length) / CHARS_PER_TOKEN) +
+        OUTPUT_PER_CALL) *
+        selected.length *
+        runs,
+    0,
+  );
+  const outputTokens = calls * OUTPUT_PER_CALL;
+  return { calls, inputTokens, outputTokens, costUsd: costUsd(model, inputTokens, outputTokens) };
+}
+
 /** Length of the tool definitions the direct harness sends, read from the server in memory. */
 async function toolsChars(): Promise<number> {
   const [serverSide, clientSide] = InMemoryTransport.createLinkedPair();
@@ -103,6 +131,8 @@ export async function main(
     return 1;
   };
 
+  if (argv[0] === 'report') return report(argv.slice(1), env, log);
+
   let opts;
   try {
     opts = parseArgs({
@@ -114,6 +144,7 @@ export async function main(
         cases: { type: 'string' },
         'dry-run': { type: 'boolean', default: false },
         out: { type: 'string' },
+        'no-judge': { type: 'boolean', default: false },
       },
     }).values;
   } catch (e) {
@@ -122,7 +153,7 @@ export async function main(
 
   const selected: HarnessName[] = opts.all
     ? [...harnessNames]
-    : ((opts.harness ?? ['none', 'direct']) as HarnessName[]);
+    : ((opts.harness ?? ['none,direct']).flatMap((h) => h.split(',')) as HarnessName[]);
   const unknown = selected.filter((h) => !harnessNames.includes(h));
   if (unknown.length) return fail(`unknown harness ${unknown.join(', ')}`);
   const runs = Number(opts.runs);
@@ -163,14 +194,24 @@ export async function main(
   log(
     `estimate: ${est.calls} calls, ${est.inputTokens} input + ${est.outputTokens} output tokens, $${est.costUsd.toFixed(4)}`,
   );
+  const useJudge = !opts['no-judge'];
+  const judgeEst = useJudge
+    ? estimateJudge(cases, selected, runs, judgeModel)
+    : { calls: 0, inputTokens: 0, outputTokens: 0, costUsd: 0 };
+  log(
+    useJudge
+      ? `judge estimate: ${judgeEst.calls} calls on ${judgeModel}, ${judgeEst.inputTokens} input + ${judgeEst.outputTokens} output tokens, $${judgeEst.costUsd.toFixed(4)}`
+      : 'judge: off (--no-judge), mentions graded na unless must_not_mention is set',
+  );
   if (maxUsd !== undefined) log(`cap: $${maxUsd.toFixed(2)} (EVAL_MAX_USD)`);
   if (opts['dry-run']) return 0;
 
   const notReady = selected.filter((h) => pending[h]);
   if (notReady.length)
     return fail(notReady.map((h) => `${h} is not implemented until ${pending[h]}`).join('; '));
-  if (maxUsd !== undefined && est.costUsd > maxUsd)
-    return fail(`estimate $${est.costUsd.toFixed(4)} exceeds EVAL_MAX_USD $${maxUsd.toFixed(2)}`);
+  const estTotal = est.costUsd + judgeEst.costUsd;
+  if (maxUsd !== undefined && estTotal > maxUsd)
+    return fail(`estimate $${estTotal.toFixed(4)} exceeds EVAL_MAX_USD $${maxUsd.toFixed(2)}`);
   if (!deps.client && !env.ANTHROPIC_API_KEY)
     return fail('ANTHROPIC_API_KEY is not set. See docs/secrets.md.');
   const client = deps.client ?? new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
@@ -182,7 +223,7 @@ export async function main(
   mkdirSync(outDir, { recursive: true });
 
   const totals = { inputTokens: 0, outputTokens: 0, costUsd: 0 };
-  let written = 0;
+  const transcripts: [Case, Transcript][] = [];
   let stopped: string | undefined;
   const start = performance.now();
   try {
@@ -191,7 +232,7 @@ export async function main(
         for (let run = 1; run <= runs; run++) {
           const t: Transcript = await harnesses[h]({ case: c, run, model, systemPrompt, client });
           writeFileSync(resolve(outDir, `${c.id}.${h}.${run}.json`), JSON.stringify(t, null, 2));
-          written++;
+          transcripts.push([c, t]);
           totals.inputTokens += t.usage.inputTokens;
           totals.outputTokens += t.usage.outputTokens;
           totals.costUsd += t.usage.costUsd;
@@ -207,23 +248,91 @@ export async function main(
   } catch (e) {
     stopped = (e as Error).message;
   }
+  // Judge, then grade. Judge spend counts toward the cap; once it is crossed, or a judge call
+  // throws, the remaining runs are graded without the judge.
+  const judgeTotals = { calls: 0, inputTokens: 0, outputTokens: 0, costUsd: 0 };
+  const graded: GradedRun[] = [];
+  for (const [c, t] of transcripts) {
+    let verdict: JudgeResult | undefined;
+    if (useJudge && needsJudge(c) && !stopped)
+      try {
+        verdict = await judge({ case: c, transcript: t, model: judgeModel, client });
+        judgeTotals.calls++;
+        judgeTotals.inputTokens += verdict.usage.inputTokens;
+        judgeTotals.outputTokens += verdict.usage.outputTokens;
+        judgeTotals.costUsd += verdict.usage.costUsd;
+        if (maxUsd !== undefined && totals.costUsd + judgeTotals.costUsd > maxUsd)
+          stopped = `spend $${(totals.costUsd + judgeTotals.costUsd).toFixed(4)} crossed EVAL_MAX_USD $${maxUsd.toFixed(2)} while judging`;
+      } catch (e) {
+        stopped = `judge: ${(e as Error).message}`;
+      }
+    const g = grade(c, t, verdict);
+    if (useJudge && needsJudge(c) && !verdict) g.details.push('mentions: judge skipped');
+    graded.push({
+      caseId: c.id,
+      category: c.category,
+      ...(c.evidence ? { evidence: c.evidence } : {}),
+      harness: t.harness,
+      model: t.model,
+      run: t.run,
+      grade: g,
+      finalText: t.finalText,
+    });
+  }
+
   const summary = {
     model,
     judgeModel,
     harnesses: selected,
     runs,
     cases: cases.map((c) => c.id),
-    transcripts: written,
+    transcripts: transcripts.length,
     expectedTranscripts: cases.length * selected.length * runs,
+    passed: graded.filter((g) => g.grade.overall).length,
     usage: totals,
+    judge: judgeTotals,
     estimate: est,
+    judgeEstimate: judgeEst,
+    pricingDate: PRICING_DATE,
     stopped: stopped ?? null,
     startedAt: now.toISOString(),
     durationMs: performance.now() - start,
+    graded,
   };
-  writeFileSync(resolve(outDir, 'summary.json'), JSON.stringify(summary, null, 2));
+  writeResults(outDir, summary);
   log(
-    `wrote ${written} transcripts and summary.json to ${outDir}; spent $${totals.costUsd.toFixed(4)}`,
+    `wrote ${transcripts.length} transcripts, summary.json, and report.md to ${outDir}; ${summary.passed}/${graded.length} passed; spent $${(totals.costUsd + judgeTotals.costUsd).toFixed(4)}`,
   );
   return stopped ? fail(`stopped early: ${stopped}`) : 0;
+}
+
+/** `report --merge <dir> <dir>...`: one report over several results dirs, printed to stdout. */
+function report(argv: string[], env: NodeJS.ProcessEnv, log: (line: string) => void): number {
+  let parsed;
+  try {
+    parsed = parseArgs({
+      args: argv,
+      options: { merge: { type: 'boolean', default: false } },
+      allowPositionals: true,
+    });
+  } catch (e) {
+    log(`error: ${(e as Error).message}`);
+    return 1;
+  }
+  if (!parsed.values.merge || parsed.positionals.length < 2) {
+    log('error: usage: evals report --merge <results dir> <results dir> [...]');
+    return 1;
+  }
+  const summaries: Summary[] = [];
+  for (const dir of parsed.positionals) {
+    const file = resolve(env.INIT_CWD ?? process.cwd(), dir, 'summary.json');
+    try {
+      summaries.push(JSON.parse(readFileSync(file, 'utf8')) as Summary);
+    } catch (e) {
+      log(`error: cannot read ${file}: ${(e as Error).message}`);
+      return 1;
+    }
+  }
+  log(renderReport(summaries));
+  return 0;
 }

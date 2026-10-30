@@ -121,6 +121,7 @@ describe('main', () => {
       'loan-01.none.2.json',
       'loan-02.none.1.json',
       'loan-02.none.2.json',
+      'report.md',
       'summary.json',
     ]);
     const summary = JSON.parse(readFileSync(join(dir, 'summary.json'), 'utf8'));
@@ -182,5 +183,155 @@ describe('main', () => {
     expect(r.code).toBe(1);
     expect(r.out).toContain('fake client ran out of scripted turns');
     expect(JSON.parse(readFileSync(join(out, 'summary.json'), 'utf8')).transcripts).toBe(1);
+  });
+
+  describe('grading and judge', () => {
+    const judged = () => {
+      const d = casesDir(['loan-01']);
+      writeFileSync(
+        join(d, 'loan-01.yaml'),
+        caseYaml('loan-01') +
+          '  answer:\n    payment: { value: 2046, tolerance: 1 }\n  must_mention: [monthly]\n',
+      );
+      return d;
+    };
+    const verdict = (pass: boolean) => ({
+      content: [text(JSON.stringify({ pass, missing: pass ? [] : ['monthly'], reason: 'r' }))],
+      stop_reason: 'end_turn' as const,
+      usage: [500, 50] as [number, number],
+    });
+
+    test('dry run estimates judge calls; --harness takes a comma list', async () => {
+      const { code, out } = await cli(
+        ['--dry-run', '--harness', 'none,direct', '--runs', '2'],
+        {},
+        { casesDir: judged() },
+      );
+      expect(code).toBe(0);
+      expect(out).toContain('harnesses: none, direct; runs: 2');
+      expect(out).toMatch(
+        /judge estimate: 4 calls on claude-sonnet-5-5, \d+ input \+ 1600 output tokens/,
+      );
+    });
+
+    test('grades, judges, and writes the report', async () => {
+      const out = mkdtempSync(join(tmpdir(), 'evals-out-'));
+      // The none run, then the judge for it.
+      const { client, requests } = fakeClient([...answer(1), verdict(true)]);
+      const r = await cli(
+        ['--harness', 'none', '--runs', '1', '--out', out],
+        {},
+        { client, casesDir: judged() },
+      );
+      expect(r.code).toBe(0);
+      expect(requests[1]?.model).toBe('claude-sonnet-5-5');
+      const summary = JSON.parse(readFileSync(join(out, 'summary.json'), 'utf8'));
+      expect(summary).toMatchObject({
+        passed: 1,
+        pricingDate: '2026-10-30',
+        judge: { calls: 1, inputTokens: 500 },
+      });
+      expect(summary.graded[0].grade).toMatchObject({
+        toolSelection: 'na',
+        answer: 'pass',
+        mentions: 'pass',
+      });
+      expect(readFileSync(join(out, 'report.md'), 'utf8')).toContain('| all | 1/1 (100%) |');
+      expect(r.out).toContain('1/1 passed');
+    });
+
+    test('a failing judge verdict fails mentions', async () => {
+      const out = mkdtempSync(join(tmpdir(), 'evals-out-'));
+      const { client } = fakeClient([...answer(1), verdict(false)]);
+      await cli(
+        ['--harness', 'none', '--runs', '1', '--out', out],
+        {},
+        { client, casesDir: judged() },
+      );
+      const summary = JSON.parse(readFileSync(join(out, 'summary.json'), 'utf8'));
+      expect(summary.graded[0].grade).toMatchObject({ mentions: 'fail', overall: false });
+    });
+
+    test('--no-judge makes no judge call and leaves mentions na', async () => {
+      const out = mkdtempSync(join(tmpdir(), 'evals-out-'));
+      const { client, requests } = fakeClient(answer(1));
+      const r = await cli(
+        ['--harness', 'none', '--runs', '1', '--no-judge', '--out', out],
+        {},
+        { client, casesDir: judged() },
+      );
+      expect(r.code).toBe(0);
+      expect(r.out).toContain('judge: off (--no-judge)');
+      expect(requests).toHaveLength(1);
+      const summary = JSON.parse(readFileSync(join(out, 'summary.json'), 'utf8'));
+      expect(summary.graded[0].grade.mentions).toBe('na');
+    });
+
+    test('judge spend crossing the cap stops judging the rest', async () => {
+      const out = mkdtempSync(join(tmpdir(), 'evals-out-'));
+      const pricey = { ...verdict(true), usage: [200_000, 0] as [number, number] };
+      const { client, requests } = fakeClient([...answer(2), pricey]);
+      const r = await cli(
+        ['--harness', 'none', '--runs', '2', '--out', out],
+        { EVAL_MAX_USD: '0.3' },
+        { client, casesDir: judged() },
+      );
+      expect(r.code).toBe(1);
+      expect(r.out).toContain('while judging');
+      expect(requests).toHaveLength(3);
+      const summary = JSON.parse(readFileSync(join(out, 'summary.json'), 'utf8'));
+      expect(summary.graded[1].grade.details).toContain('mentions: judge skipped');
+    });
+
+    test('a judge error stops judging and is reported', async () => {
+      const out = mkdtempSync(join(tmpdir(), 'evals-out-'));
+      const { client } = fakeClient(answer(1));
+      const r = await cli(
+        ['--harness', 'none', '--runs', '1', '--out', out],
+        {},
+        { client, casesDir: judged() },
+      );
+      expect(r.out).toContain('stopped early: judge: fake client ran out of scripted turns');
+    });
+  });
+
+  describe('report --merge', () => {
+    const results = (model: string) => {
+      const d = mkdtempSync(join(tmpdir(), 'evals-res-'));
+      const s = {
+        model,
+        judgeModel: 'claude-sonnet-5-5',
+        harnesses: ['direct'],
+        runs: 1,
+        pricingDate: '2026-10-30',
+        usage: { inputTokens: 1, outputTokens: 1, costUsd: 0 },
+        judge: { calls: 0, inputTokens: 0, outputTokens: 0, costUsd: 0 },
+        startedAt: '2026-10-30T00:00:00.000Z',
+        stopped: null,
+        graded: [],
+      };
+      writeFileSync(join(d, 'summary.json'), JSON.stringify(s));
+      return d;
+    };
+
+    test('prints one table with model columns', async () => {
+      const { code, out } = await cli(['report', '--merge', results('a'), results('b')]);
+      expect(code).toBe(0);
+      expect(out).toContain('| Category | direct / a | direct / b |');
+    });
+
+    test.each([
+      [['report', results('a')], 'usage: evals report --merge'],
+      [['report', '--merge', results('a')], 'usage: evals report --merge'],
+      [['report', '--bogus'], "Unknown option '--bogus'"],
+      [
+        ['report', '--merge', results('a'), '/nonexistent'],
+        'cannot read /nonexistent/summary.json',
+      ],
+    ])('%j fails: %s', async (argv, message) => {
+      const { code, out } = await cli(argv);
+      expect(code).toBe(1);
+      expect(out).toContain(message);
+    });
   });
 });

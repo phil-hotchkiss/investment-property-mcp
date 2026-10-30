@@ -42,7 +42,13 @@ export type DealAnalysisValues = {
 };
 
 export function dealAnalysis(raw: unknown): CalcResult<DealAnalysisValues> {
-  const x = parseInput(dealAnalysisInput, raw);
+  return computeDealAnalysis(parseInput(dealAnalysisInput, raw));
+}
+
+/** The math behind `dealAnalysis`, on already-parsed input. Exported for maxOffer and stressTest. */
+export function computeDealAnalysis(
+  x: z.output<typeof dealAnalysisInput>,
+): CalcResult<DealAnalysisValues> {
   const coc = computeCashOnCash(x);
   const d = computeDscr({ ...x, method: x.dscrMethod, target: x.dscrTarget });
   const annualGrossRent = coc.values.monthlyRentUsed * 12;

@@ -30,3 +30,12 @@ Format per entry: heading `## YYYY-MM-DD: short title`, then fields `Client and 
 - **What was correct:** Everything. Fixture values are 1.2324, 1.7801, 0.8594, portfolio 1.1892.
 - **Why it matters:** This was not a no-tools run. A model with a code interpreter and fully specified, clean inputs does the math correctly. The eval baseline harness must therefore be a bare API call with no tools at all, as the PRD specifies, or the baseline-versus-tools delta disappears. It also sharpens the project's claim: the toolkit's value is on messy inputs, missing information, unit traps, method ambiguity, weaker or cheaper models, and consistency across repeated runs, not on arithmetic a strong model can script. The README should say this rather than claim models cannot do deal math.
 - **Eval case:** None directly. Informs the `none` harness design and the single-tool-clean-input category, which is expected to show a small delta.
+
+## 2026-10-30: With the tool result in hand, the model invented the one number the summary left out
+
+- **Client and model:** evals direct harness, claude-haiku-4-5, single-tool-dscr-01.
+- **Prompt:** "Condo in Tampa. Price $315,000, rent $2,450 per month, property tax $5,200 per year, insurance $3,100 per year, HOA $325 per month. 20% down, 7.0% interest, 30-year loan. What is the DSCR using the rent-to-PITIA method, and does it clear a 1.0 target?"
+- **What the model did:** Took DSCR 0.91 and PITIA 2,693.23 correctly from the tool text. Then it wrote a breakdown table with a monthly P&I of 2,096.46. That number appears nowhere in the tool output.
+- **What was correct:** DSCR and PITIA. The true monthly P&I is 1,676.56.
+- **Why it matters:** Models fill gaps. A tool result must contain every number the model might echo. `structuredContent` is not enough, because most clients pass only the text content to the model. Fix applied: the tool text now carries a second block with the full values JSON, and the eval cases now check P&I and loan amount.
+- **Eval case:** `single-tool-dscr-01` (now checks `monthlyDebtService` and `loanAmount`).

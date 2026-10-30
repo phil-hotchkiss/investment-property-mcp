@@ -27,3 +27,5 @@ expected:
   answer:
     dscr: { tolerance: 0.01 }
     monthlyPitia: { tolerance_pct: 1 }
+    monthlyDebtService: { tolerance_pct: 1 }
+    loanAmount: { tolerance_pct: 1 }

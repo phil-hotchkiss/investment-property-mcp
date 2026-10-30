@@ -66,7 +66,11 @@ function registerCalculatorTool<T>(
       }
       return {
         structuredContent: result,
-        content: [{ type: 'text', text: summarize(result) }],
+        content: [
+          { type: 'text', text: summarize(result) },
+          // Most clients pass only text to the model, so every computed value goes here.
+          { type: 'text', text: `All computed values:\n${JSON.stringify(result.values)}` },
+        ],
       };
     },
   );

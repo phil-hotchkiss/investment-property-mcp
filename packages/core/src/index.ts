@@ -16,3 +16,4 @@ export * from './calculators/cashOnCash.js';
 export * from './calculators/dealAnalysis.js';
 export * from './solve/bisection.js';
 export * from './calculators/maxOffer.js';
+export * from './calculators/stressTest.js';

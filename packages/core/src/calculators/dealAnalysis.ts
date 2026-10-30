@@ -3,20 +3,23 @@ import { type CalcResult, parseInput } from '../schemas/result.js';
 import { computeCashOnCash, dealChecks, dealShape } from './cashOnCash.js';
 import { computeDscr } from './dscr.js';
 
+/** Raw shape; stressTest extends it. */
+export const dealAnalysisShape = {
+  ...dealShape,
+  dscrMethod: z
+    .enum(['rentToPitia', 'noi'])
+    .describe(
+      'Required, no default. rentToPitia: gross monthly rent / PITIA, the common DSCR-loan method. noi: annual NOI / annual debt service, the traditional commercial method.',
+    ),
+  dscrTarget: z
+    .number()
+    .positive()
+    .default(1.25)
+    .describe('Minimum DSCR ratio to pass, e.g. 1.25. A ratio, not a percent. Default 1.25.'),
+};
+
 export const dealAnalysisInput = z
-  .object({
-    ...dealShape,
-    dscrMethod: z
-      .enum(['rentToPitia', 'noi'])
-      .describe(
-        'Required, no default. rentToPitia: gross monthly rent / PITIA, the common DSCR-loan method. noi: annual NOI / annual debt service, the traditional commercial method.',
-      ),
-    dscrTarget: z
-      .number()
-      .positive()
-      .default(1.25)
-      .describe('Minimum DSCR ratio to pass, e.g. 1.25. A ratio, not a percent. Default 1.25.'),
-  })
+  .object(dealAnalysisShape)
   .superRefine((v, ctx) => dealChecks.forEach((check) => check(v, ctx)));
 
 export type DealAnalysisInput = z.input<typeof dealAnalysisInput>;

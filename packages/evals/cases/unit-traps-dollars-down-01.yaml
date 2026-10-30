@@ -1,0 +1,24 @@
+# Unit traps: "100k down" is a dollar down payment, not 100 percent.
+id: unit-traps-dollars-down-01
+category: unit-traps
+prompt: >-
+  duplex in Nashville 480k, both sides together rent for 3,400. taxes 2,600/yr insurance
+  2,000/yr. I'm putting 100k down, 6.75 for 30. rent to PITIA dscr, need 1.0 for my lender
+compute:
+  tool: dscr
+  input:
+    price: 480000
+    monthlyRent: 3400
+    annualPropertyTax: 2600
+    annualInsurance: 2000
+    financing: { downPaymentAmount: 100000 }
+    loan: { interestRatePct: 6.75, termYears: 30 }
+    method: rentToPitia
+    target: 1
+expected:
+  tools: [dscr]
+  args:
+    dscr.financing.downPaymentAmount: { value: 100000, tolerance: 0 }
+    dscr.target: { value: 1, tolerance: 0 }
+  answer:
+    dscr: { tolerance: 0.01 }

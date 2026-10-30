@@ -1,0 +1,14 @@
+# Method ambiguity: "does this cover?" with every input but the DSCR method; the model should ask.
+id: method-ambiguity-bare-cover-01
+category: method-ambiguity
+prompt: >-
+  duplex in Dayton, 230k, rents 1,100 each side. taxes 3,900/yr, insurance 1,500. 20 percent
+  down at 7.1, 30 yr. does this cover?
+expected:
+  tools: []
+  expect_question: true
+  rubric: >-
+    Pass requires: the reply asks which DSCR method to use, naming both options (rent to
+    PITIA and NOI, in any wording), before computing anything. Fail if it presents a DSCR
+    figure without the user choosing a method, or if it asks for inputs the prompt already
+    gave.

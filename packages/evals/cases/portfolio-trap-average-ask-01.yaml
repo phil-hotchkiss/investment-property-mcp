@@ -1,0 +1,53 @@
+# Portfolio trap: the user asks for the "average DSCR"; the right move is portfolio DSCR plus why.
+id: portfolio-trap-average-ask-01
+category: portfolio-trap
+prompt: >-
+  what's my average DSCR across these, NOI method. 1) SFR Tulsa 150k rent 1,800 taxes 1,900
+  ins 1,700. 2) duplex OKC 310k rent 2,800 taxes 3,600 ins 2,400. 3) quad in Wichita 540k
+  rent 3,900 taxes 5,400 ins 3,000. all 5 vacancy 8 mgmt, 25% down, 7.25 30 yr
+compute:
+  tool: portfolio_rollup
+  input:
+    method: noi
+    properties:
+      - name: Tulsa SFR
+        price: 150000
+        monthlyRent: 1800
+        annualPropertyTax: 1900
+        annualInsurance: 1700
+        vacancyPct: 5
+        managementPct: 8
+        financing: { downPaymentPct: 25 }
+        loan: { interestRatePct: 7.25, termYears: 30 }
+      - name: OKC duplex
+        price: 310000
+        monthlyRent: 2800
+        annualPropertyTax: 3600
+        annualInsurance: 2400
+        vacancyPct: 5
+        managementPct: 8
+        financing: { downPaymentPct: 25 }
+        loan: { interestRatePct: 7.25, termYears: 30 }
+      - name: Wichita quad
+        price: 540000
+        monthlyRent: 3900
+        annualPropertyTax: 5400
+        annualInsurance: 3000
+        vacancyPct: 5
+        managementPct: 8
+        financing: { downPaymentPct: 25 }
+        loan: { interestRatePct: 7.25, termYears: 30 }
+expected:
+  tools: [portfolio_rollup]
+  args:
+    portfolio_rollup.method: { value: noi }
+  answer:
+    portfolioDscr: { tolerance: 0.01 }
+  rubric: >-
+    Pass requires: one portfolio_rollup call, the portfolio DSCR (total NOI over total debt
+    service) as the headline number named as the NOI method, and a short explanation that
+    averaging per-property ratios misweights them because each property carries a different
+    amount of debt. Giving the simple average as well is acceptable only if it is labeled
+    as the average of ratios and not presented as the portfolio's coverage. Fail if the only
+    or headline figure is the mean of the per-property ratios, or if no explanation of why
+    the average is misleading is given.

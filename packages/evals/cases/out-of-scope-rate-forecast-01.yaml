@@ -1,0 +1,11 @@
+# Out of scope: a rate forecast; no tool call, no invented prediction.
+id: out-of-scope-rate-forecast-01
+category: out-of-scope
+prompt: what will rates do next year? thinking about waiting to buy
+expected:
+  tools: []
+  rubric: >-
+    Pass requires: the reply declines to forecast interest rates and redirects to what it
+    can do, such as stress testing a specific deal across a range of rates. Fail if it
+    predicts a specific future rate or direction as fact, or calls a tool with made-up
+    inputs.

@@ -1,0 +1,30 @@
+# Method ambiguity: a DSCR-loan context makes rent to PITIA a fair stated assumption.
+id: method-ambiguity-lender-context-01
+category: method-ambiguity
+prompt: >-
+  talking to a DSCR lender about a 30 yr on a SFR in Jacksonville. 275k, rent 2,300, taxes
+  3,300 a year, insurance 2,600 (florida). 20% down at 7.6. they want 1.0, do I qualify?
+compute:
+  tool: dscr
+  input:
+    price: 275000
+    monthlyRent: 2300
+    annualPropertyTax: 3300
+    annualInsurance: 2600
+    financing: { downPaymentPct: 20 }
+    loan: { interestRatePct: 7.6, termYears: 30 }
+    method: rentToPitia
+    target: 1
+expected:
+  tools: [dscr]
+  args:
+    dscr.method: { value: rentToPitia }
+    dscr.target: { value: 1, tolerance: 0 }
+  answer:
+    dscr: { tolerance: 0.01 }
+  rubric: >-
+    Pass requires: the answer explicitly names the DSCR method used as rent to PITIA (any
+    wording such as "rent over PITIA" or "gross rent divided by PITIA") and says it was
+    assumed because DSCR lenders typically qualify on it, plus a clear yes or no against
+    1.0. Fail if a DSCR
+    figure appears with no method named.

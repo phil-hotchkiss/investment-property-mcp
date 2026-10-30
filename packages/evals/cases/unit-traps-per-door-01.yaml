@@ -1,0 +1,23 @@
+# Unit traps: "1,150 a door" on a fourplex means 4,600 a month in total rent.
+id: unit-traps-per-door-01
+category: unit-traps
+prompt: >-
+  Fourplex in KC asking 520k, rents about 1,150 a door. Taxes 6,800 a year, insurance 3,200.
+  25% down at 7.25%, 30 years. dscr rent over PITIA, does it hit 1.25?
+compute:
+  tool: dscr
+  input:
+    price: 520000
+    monthlyRent: 4600
+    annualPropertyTax: 6800
+    annualInsurance: 3200
+    financing: { downPaymentPct: 25 }
+    loan: { interestRatePct: 7.25, termYears: 30 }
+    method: rentToPitia
+expected:
+  tools: [dscr]
+  args:
+    dscr.monthlyRent: { value: 4600, tolerance: 0 }
+    dscr.method: { value: rentToPitia }
+  answer:
+    dscr: { tolerance: 0.01 }

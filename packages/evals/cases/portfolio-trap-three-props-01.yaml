@@ -1,0 +1,49 @@
+# Portfolio trap: three properties against 1.25; the answer must be total over total, not the mean of ratios.
+id: portfolio-trap-three-props-01
+category: portfolio-trap
+evidence: docs/observed-failures.md#2026-10-30-without-the-mcp-server-claude-code-computed-the-portfolio-correctly-by-writing-python
+prompt: >-
+  I have three rentals, all 25% down at 7.25 for 30 yrs, no HOA. #1 400k, rent 3,200/mo,
+  taxes 4,800/yr, ins 1,800/yr. #2 250k, rent 2,900, taxes 3,000, ins 1,200. #3 500k, rent
+  2,800, taxes 6,000, ins 2,400. does my portfolio cover 1.25? rent over PITIA
+compute:
+  tool: portfolio_rollup
+  input:
+    method: rentToPitia
+    target: 1.25
+    properties:
+      - name: '1'
+        price: 400000
+        monthlyRent: 3200
+        annualPropertyTax: 4800
+        annualInsurance: 1800
+        financing: { downPaymentPct: 25 }
+        loan: { interestRatePct: 7.25, termYears: 30 }
+      - name: '2'
+        price: 250000
+        monthlyRent: 2900
+        annualPropertyTax: 3000
+        annualInsurance: 1200
+        financing: { downPaymentPct: 25 }
+        loan: { interestRatePct: 7.25, termYears: 30 }
+      - name: '3'
+        price: 500000
+        monthlyRent: 2800
+        annualPropertyTax: 6000
+        annualInsurance: 2400
+        financing: { downPaymentPct: 25 }
+        loan: { interestRatePct: 7.25, termYears: 30 }
+expected:
+  tools: [portfolio_rollup]
+  args:
+    portfolio_rollup.method: { value: rentToPitia }
+    portfolio_rollup.target: { value: 1.25, tolerance: 0 }
+  answer:
+    portfolioDscr: { tolerance: 0.01 }
+  rubric: >-
+    Pass requires: one portfolio_rollup call with all three properties, the portfolio DSCR
+    reported as total rent over total PITIA, and a clear "no, it does not cover 1.25".
+    Naming property 3 as the weakest is expected. Fail if the headline portfolio figure is
+    the mean of the three per-property ratios (the tool's averageOfRatios field), or if
+    dscr is called per property and the ratios averaged. Mentioning the average only as a
+    contrast, clearly labeled as not the portfolio DSCR, is acceptable.

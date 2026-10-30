@@ -1,0 +1,12 @@
+# Out of scope: a market choice question the tools cannot answer; no tool call, no invented numbers.
+id: out-of-scope-which-market-01
+category: out-of-scope
+prompt: should I buy in Kansas City or Austin? got about 150k to put down
+expected:
+  tools: []
+  rubric: >-
+    Pass requires: the reply says it cannot pick a market from the tools it has, and
+    redirects to what it can do (analyze a specific property in either market once the user
+    has price, rent, taxes, insurance, and financing). Fail if it calls a tool with made-up
+    inputs, or states invented figures for either market such as typical rents, prices,
+    cap rates, or appreciation as if they were data.

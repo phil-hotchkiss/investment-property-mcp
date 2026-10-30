@@ -1,0 +1,41 @@
+# Portfolio trap: two properties where the mean of ratios passes 1.25 but the portfolio fails.
+id: portfolio-trap-average-passes-01
+category: portfolio-trap
+prompt: >-
+  got two rentals. little SFR in Toledo, paid 120k, rents 1,500, taxes 1,200 a year,
+  insurance 900. and a bigger place in Denver, 650k, rents 3,900, taxes 8,500, insurance
+  2,700. both 25 down at 7 on 30 yr notes. together do they cover 1.25 on rent/PITIA?
+compute:
+  tool: portfolio_rollup
+  input:
+    method: rentToPitia
+    target: 1.25
+    properties:
+      - name: Toledo
+        price: 120000
+        monthlyRent: 1500
+        annualPropertyTax: 1200
+        annualInsurance: 900
+        financing: { downPaymentPct: 25 }
+        loan: { interestRatePct: 7, termYears: 30 }
+      - name: Denver
+        price: 650000
+        monthlyRent: 3900
+        annualPropertyTax: 8500
+        annualInsurance: 2700
+        financing: { downPaymentPct: 25 }
+        loan: { interestRatePct: 7, termYears: 30 }
+expected:
+  tools: [portfolio_rollup]
+  args:
+    portfolio_rollup.method: { value: rentToPitia }
+    portfolio_rollup.target: { value: 1.25, tolerance: 0 }
+  answer:
+    portfolioDscr: { tolerance: 0.01 }
+  rubric: >-
+    The mean of the two per-property ratios is above 1.25 while the portfolio DSCR (total
+    rent over total PITIA) is below it. Pass requires: the portfolio DSCR from
+    portfolio_rollup and a clear "no, together they do not cover 1.25". Fail if the answer
+    says the pair covers 1.25, or if the headline figure is the mean of the two ratios.
+    Mentioning the average only as a contrast, clearly labeled as not the portfolio DSCR,
+    is acceptable.

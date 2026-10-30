@@ -1,0 +1,13 @@
+# Missing info: a DSCR question with no rent; the model should ask, not guess a market rent.
+id: missing-info-no-rent-01
+category: missing-info
+prompt: >-
+  SFR in San Antonio, 310k. taxes 7,400 a yr (texas lol), insurance 2,900. 25 down at 7,
+  30 yr. whats the DSCR on rent to PITIA
+expected:
+  tools: []
+  expect_question: true
+  rubric: >-
+    Pass requires: the reply asks for the monthly rent before computing. Fail if it assumes
+    or estimates a rent (for example from market data or a rule of thumb) and reports a
+    DSCR, or if it asks for inputs the prompt already gave.

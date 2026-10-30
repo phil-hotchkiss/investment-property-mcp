@@ -1,0 +1,30 @@
+# Unit traps: taxes stated per month must reach the tool as an annual figure (425 x 12).
+id: unit-traps-monthly-taxes-01
+category: unit-traps
+prompt: >-
+  house in Raleigh at 385k, rent 2,750. taxes are about 425 a month, insurance 1,650 a year.
+  20 percent down at 6.9 on a 30. 5% vacancy, 8% mgmt, 5 maintenance, 5 capex. full
+  breakdown please, NOI method for dscr
+compute:
+  tool: deal_analysis
+  input:
+    price: 385000
+    monthlyRent: 2750
+    annualPropertyTax: 5100
+    annualInsurance: 1650
+    vacancyPct: 5
+    managementPct: 8
+    maintenancePct: 5
+    capexPct: 5
+    financing: { downPaymentPct: 20 }
+    loan: { interestRatePct: 6.9, termYears: 30 }
+    dscrMethod: noi
+expected:
+  tools: [deal_analysis]
+  args:
+    deal_analysis.annualPropertyTax: { value: 5100, tolerance: 0 }
+    deal_analysis.annualInsurance: { value: 1650, tolerance: 0 }
+  answer:
+    annualNoi: { tolerance_pct: 1 }
+    dscr: { tolerance: 0.01 }
+    monthlyCashFlow: { tolerance: 5 }

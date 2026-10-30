@@ -1,0 +1,34 @@
+# Baseline: one stress_test call sweeping vacancy, reporting the break-even vacancy.
+id: single-tool-stress-test-01
+category: single-tool
+prompt: >-
+  Single family in Birmingham, Alabama. Price $165,000, rent $1,850 per month. Property tax
+  $1,500 per year, insurance $1,700 per year. Vacancy 5%, management 10%, maintenance 5%,
+  capex 5%. 25% down at 7% for 30 years. Using the NOI method with a 1.25 DSCR target,
+  sweep vacancy from 0% to 25% in 6 steps. At what vacancy does DSCR drop below 1.25,
+  and where does cash flow go to zero?
+compute:
+  tool: stress_test
+  input:
+    price: 165000
+    monthlyRent: 1850
+    annualPropertyTax: 1500
+    annualInsurance: 1700
+    vacancyPct: 5
+    managementPct: 10
+    maintenancePct: 5
+    capexPct: 5
+    financing: { downPaymentPct: 25 }
+    loan: { interestRatePct: 7, termYears: 30 }
+    dscrMethod: noi
+    dscrTarget: 1.25
+    vacancyPctRange: { min: 0, max: 25, steps: 6 }
+expected:
+  tools: [stress_test]
+  args:
+    stress_test.dscrMethod: { value: noi }
+    stress_test.vacancyPctRange.min: { value: 0, tolerance: 0 }
+    stress_test.vacancyPctRange.max: { value: 25, tolerance: 0 }
+  answer:
+    vacancyPctRange.breakEven.dscrAtTarget: { tolerance: 0.2 }
+    vacancyPctRange.breakEven.cashFlowZero: { tolerance: 0.2 }

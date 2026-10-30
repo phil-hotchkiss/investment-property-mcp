@@ -1,0 +1,34 @@
+# Baseline: one deal_analysis call on a duplex, NOI method stated.
+id: single-tool-deal-analysis-01
+category: single-tool
+prompt: >-
+  Duplex in Indianapolis listed at $289,000. Total rent $2,700 per month for both units.
+  Property tax $4,100 per year, insurance $1,900 per year. Vacancy 5%, management 8%,
+  maintenance 5%, capex 5%. 20% down at 7.5% for 30 years, closing costs 3% of price.
+  Give me cap rate, DSCR on the NOI method, monthly cash flow, and cash-on-cash.
+compute:
+  tool: deal_analysis
+  input:
+    price: 289000
+    monthlyRent: 2700
+    annualPropertyTax: 4100
+    annualInsurance: 1900
+    vacancyPct: 5
+    managementPct: 8
+    maintenancePct: 5
+    capexPct: 5
+    financing: { downPaymentPct: 20 }
+    loan: { interestRatePct: 7.5, termYears: 30 }
+    closingCostsPctOfPrice: 3
+    dscrMethod: noi
+expected:
+  tools: [deal_analysis]
+  args:
+    deal_analysis.dscrMethod: { value: noi }
+    deal_analysis.monthlyRent: { value: 2700, tolerance: 0 }
+    deal_analysis.closingCostsPctOfPrice: { value: 3, tolerance: 0 }
+  answer:
+    capRatePct: { tolerance: 0.05 }
+    dscr: { tolerance: 0.01 }
+    monthlyCashFlow: { tolerance: 5 }
+    cashOnCashPct: { tolerance: 0.1 }

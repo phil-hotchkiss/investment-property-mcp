@@ -1,0 +1,32 @@
+# Baseline: one cash_on_cash call with closing costs and rehab in cash invested.
+id: single-tool-cash-on-cash-01
+category: single-tool
+prompt: >-
+  Single family in Columbus, Ohio. Price $210,000, rent $1,850 per month. Property tax
+  $3,400 per year, insurance $1,400 per year. Vacancy 6%, management 9%, maintenance 5%,
+  capex 5%. 25% down at 7.125% for 30 years. Closing costs $6,500 and rehab $12,000.
+  What is my cash-on-cash return and annual cash flow?
+compute:
+  tool: cash_on_cash
+  input:
+    price: 210000
+    monthlyRent: 1850
+    annualPropertyTax: 3400
+    annualInsurance: 1400
+    vacancyPct: 6
+    managementPct: 9
+    maintenancePct: 5
+    capexPct: 5
+    financing: { downPaymentPct: 25 }
+    loan: { interestRatePct: 7.125, termYears: 30 }
+    closingCosts: 6500
+    rehabCost: 12000
+expected:
+  tools: [cash_on_cash]
+  args:
+    cash_on_cash.closingCosts: { value: 6500, tolerance: 0 }
+    cash_on_cash.rehabCost: { value: 12000, tolerance: 0 }
+    cash_on_cash.loan.interestRatePct: { value: 7.125, tolerance: 0 }
+  answer:
+    cashOnCashPct: { tolerance: 0.1 }
+    annualCashFlow: { tolerance_pct: 1 }

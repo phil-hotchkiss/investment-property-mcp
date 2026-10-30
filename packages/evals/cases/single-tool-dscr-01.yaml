@@ -1,0 +1,29 @@
+# Baseline: one dscr call on a condo with HOA, method stated by the user.
+id: single-tool-dscr-01
+category: single-tool
+prompt: >-
+  Condo in Tampa. Price $315,000, rent $2,450 per month, property tax $5,200 per year,
+  insurance $3,100 per year, HOA $325 per month. 20% down, 7.0% interest, 30-year loan.
+  What is the DSCR using the rent-to-PITIA method, and does it clear a 1.0 target?
+compute:
+  tool: dscr
+  input:
+    price: 315000
+    monthlyRent: 2450
+    annualPropertyTax: 5200
+    annualInsurance: 3100
+    monthlyHoa: 325
+    financing: { downPaymentPct: 20 }
+    loan: { interestRatePct: 7, termYears: 30 }
+    method: rentToPitia
+    target: 1
+expected:
+  tools: [dscr]
+  args:
+    dscr.method: { value: rentToPitia }
+    dscr.monthlyRent: { value: 2450, tolerance: 0 }
+    dscr.monthlyHoa: { value: 325, tolerance: 0 }
+    dscr.target: { value: 1, tolerance: 0 }
+  answer:
+    dscr: { tolerance: 0.01 }
+    monthlyPitia: { tolerance_pct: 1 }

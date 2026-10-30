@@ -5,7 +5,7 @@ import { propertyCostsChecks } from '../schemas/property.js';
 import { type CalcResult, parseInput } from '../schemas/result.js';
 import { computeDscr, dscrMethod, dscrPropertyShape, dscrTarget } from './dscr.js';
 
-export const portfolioRollupInput = z.object({
+export const portfolioRollupInput = z.strictObject({
   method: dscrMethod.describe(
     'Required, no default, applies to every property. rentToPitia: total gross monthly rent / total PITIA, the common DSCR-loan method. noi: total annual NOI / total annual debt service, the traditional commercial method.',
   ),
@@ -15,7 +15,7 @@ export const portfolioRollupInput = z.object({
   properties: z
     .array(
       z
-        .object({
+        .strictObject({
           name: z
             .string()
             .optional()

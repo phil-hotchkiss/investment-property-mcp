@@ -32,7 +32,7 @@ export const dealShape = {
 export const dealChecks = [...propertyCostsChecks, ...cashInvestedChecks];
 
 export const cashOnCashInput = z
-  .object(dealShape)
+  .strictObject(dealShape)
   .superRefine((v, ctx) => dealChecks.forEach((check) => check(v, ctx)));
 
 export type CashOnCashInput = z.input<typeof cashOnCashInput>;

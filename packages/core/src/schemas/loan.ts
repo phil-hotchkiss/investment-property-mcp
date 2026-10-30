@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { pct } from './percent.js';
 
 export const loan = z
-  .object({
+  .strictObject({
     interestRatePct: pct('interestRatePct').describe(
       'Annual interest rate as a percent number, 7.25 means 7.25%.',
     ),

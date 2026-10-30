@@ -12,11 +12,11 @@ const targetNames = ['minDscr', 'minCashOnCashPct', 'minMonthlyCashFlow'] as con
 type TargetName = (typeof targetNames)[number];
 
 export const maxOfferInput = z
-  .object(dealShape)
+  .strictObject(dealShape)
   .omit({ price: true })
   .extend({
     targets: z
-      .object({
+      .strictObject({
         minDscr: z
           .number()
           .positive()

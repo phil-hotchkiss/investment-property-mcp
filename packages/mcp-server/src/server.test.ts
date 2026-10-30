@@ -112,6 +112,14 @@ describe('input errors', () => {
     expect(r.text).toContain('at loan.interestRatePct');
   });
 
+  test('an unknown key is a tool error naming it, and tools/list forbids extras', async () => {
+    const r = await call('dscr', { ...dscrArgs, vacancy: 5 });
+    expect(r.isError).toBe(true);
+    expect(r.text).toContain('vacancy');
+    const { tools } = await client.listTools();
+    expect(tools.find((t) => t.name === 'dscr')?.inputSchema.additionalProperties).toBe(false);
+  });
+
   test('a missing DSCR method is a tool error naming method', async () => {
     const noMethod = { ...dscrArgs };
     delete noMethod.method;

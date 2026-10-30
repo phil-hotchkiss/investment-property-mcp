@@ -42,7 +42,7 @@ export const dscrTarget = z
   .describe('Minimum DSCR ratio to pass, e.g. 1.25. A ratio, not a percent. Default 1.25.');
 
 export const dscrInput = z
-  .object({ ...dscrPropertyShape, method: dscrMethod, target: dscrTarget })
+  .strictObject({ ...dscrPropertyShape, method: dscrMethod, target: dscrTarget })
   .superRefine((v, ctx) => propertyCostsChecks.forEach((check) => check(v, ctx)));
 
 export type DscrInput = z.input<typeof dscrInput>;

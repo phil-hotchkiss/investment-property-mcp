@@ -9,7 +9,7 @@ import { computeDealAnalysis, dealAnalysisShape } from './dealAnalysis.js';
 
 function range(field: string, value: (name: string) => z.ZodType<number>, unit: string) {
   return z
-    .object({
+    .strictObject({
       min: value(`${field}.min`).describe(`Lowest value to try, ${unit}.`),
       max: value(`${field}.max`).describe(`Highest value to try, ${unit}.`),
       steps: z
@@ -58,7 +58,7 @@ type RangeKey = keyof typeof rangeShape;
 const rangeKeys = Object.keys(rangeShape) as RangeKey[];
 
 export const stressTestInput = z
-  .object({ ...dealAnalysisShape, ...rangeShape })
+  .strictObject({ ...dealAnalysisShape, ...rangeShape })
   .superRefine((v, ctx) => {
     dealChecks.forEach((check) => check(v, ctx));
     if (rangeKeys.every((k) => v[k] === undefined))

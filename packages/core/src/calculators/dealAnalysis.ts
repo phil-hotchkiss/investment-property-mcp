@@ -20,7 +20,7 @@ export const dealAnalysisShape = {
 };
 
 export const dealAnalysisInput = z
-  .object(dealAnalysisShape)
+  .strictObject(dealAnalysisShape)
   .superRefine((v, ctx) => dealChecks.forEach((check) => check(v, ctx)));
 
 export type DealAnalysisInput = z.input<typeof dealAnalysisInput>;

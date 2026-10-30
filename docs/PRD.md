@@ -161,7 +161,7 @@ Two chat agents, `apps/agent-ts` and `apps/agent-py`, built on LangChain in each
 
 - **Zero math, zero tool definitions.** Agents discover tools at startup from the MCP server over stdio via the official LangChain MCP adapters (`@langchain/mcp-adapters` in TS, `langchain-mcp-adapters` in Python). No tool schema, description, or formula is written in agent code. If the agent needs to know something about a tool, it belongs in the MCP server.
 - **Same system prompt.** Both agents load `docs/agent/system-prompt.md` at runtime. The prompt covers: ask when DSCR method is unknown, never invent missing inputs, state units when echoing numbers, say when a question is out of scope. One file, two consumers.
-- **Same graph.** Both use LangGraph's prebuilt ReAct agent (`createReactAgent` / `create_react_agent`) with in-memory conversation state. No custom graph unless an eval case forces it, and then the ADR explains why.
+- **Same graph, one deliberate divergence.** The TypeScript agent uses LangGraph's prebuilt ReAct agent (`createReactAgent`) with in-memory conversation state and no customization. The Python agent starts from the same prebuilt graph, then replaces it with a small custom LangGraph `StateGraph` that adds one node: a clarification gate that runs before any `dscr` or `max_offer` tool call, checks whether the user has stated a DSCR method, and if not, interrupts the graph to ask the user rather than letting the model guess or state an assumption. Everything else about the two agents stays identical. The divergence exists to show graph-level control in Python, which is where PostHog's own assistant lives, and it must be the only divergence: same system prompt, same tools, same one-shot JSON transcript shape. The eval harness treats the interrupt as the agent asking a question, which is the correct behavior for the method ambiguity category.
 - **Same eval suite.** Both agents must pass the existing eval cases through the agent harness described below. Parity is a reported number, not a claim.
 - **Model is config.** The model id comes from `AGENT_MODEL`; the provider is selected through LangChain's string-based model init (`anthropic:claude-...`) so switching providers is an env change, not a code change. Anthropic is the default and the only provider tested.
 
@@ -183,6 +183,7 @@ Two chat agents, `apps/agent-ts` and `apps/agent-py`, built on LangChain in each
 - Both agents runnable from a fresh clone with the commands above and a README section each: install, set `ANTHROPIC_API_KEY`, run, three example prompts.
 - Parity table in the eval report: direct SDK vs agent-ts vs agent-py, pass rate per category.
 - ADRs: MCP adapters instead of hand-written LangChain tools (single source of truth); prebuilt ReAct graph instead of a custom graph or legacy `AgentExecutor`.
+- ADR: why the Python agent carries the custom graph and the TypeScript agent does not, and why a clarification gate is implemented as a graph node rather than prompt instruction.
 
 ## Evals
 
@@ -293,9 +294,9 @@ Work in this order and stop for Phil's review after each. If the schedule slips,
 3. **M2: MCP server** (days 7 to 9). Done when every tool works from Claude Desktop or Claude Code using the README config, and a bad-unit input returns the teaching error.
 4. **M3: Evals** (days 10 to 14). Done when 25+ cases run with one command, baseline and direct reports are generated, and the README results table is filled from a real run.
 5. **M4: TypeScript agent** (days 15 to 17). Done when `agent-ts` chats from a fresh clone, the fake-model unit tests pass in CI, and `pnpm evals --harness agent-ts` produces a report alongside the direct harness per category.
-6. **M5: Python agent** (days 18 to 20). Done when `agent-py` meets the same bar as M4 and the parity table shows all three harnesses side by side.
-7. **M6: README and ADRs** (day 21). Done when the README meets every required section and a stranger could run the MCP server and one agent in under five minutes.
-8. **M7: React app** (days 22 to 26). Done when both screens work, the app is deployed, PostHog events and the flag fire, and component tests pass.
+6. **M5: Python agent** (days 18 to 21). Done when `agent-py` meets the same bar as M4 using the prebuilt graph, then passes the same evals with the custom clarification-gate graph, and the method ambiguity category shows the gate firing in the transcripts. The parity table shows all three harnesses side by side.
+7. **M6: README and ADRs** (day 22). Done when the README meets every required section and a stranger could run the MCP server and one agent in under five minutes.
+8. **M7: React app** (days 23 to 27). Done when both screens work, the app is deployed, PostHog events and the flag fire, and component tests pass.
 
 Days are evening work sessions, not calendar days.
 

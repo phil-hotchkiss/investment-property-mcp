@@ -5,7 +5,7 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, os.path.dirname(__file__))
-import secrets as store  # noqa: E402  (local module; shadows stdlib `secrets` only in this process)
+import keychain as store
 
 
 def done(code=0, out=""):

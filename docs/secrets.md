@@ -2,7 +2,7 @@
 
 API keys live in the macOS Keychain under the service `rental-deal-math`, not in `.zshrc` or `.env`.
 
-Store the key once: `python3 scripts/secrets.py set ANTHROPIC_API_KEY`, then paste it when prompted. It never goes through argv or shell history.
+Store the key once: `python3 scripts/keychain.py set ANTHROPIC_API_KEY`, then paste it when prompted. It never goes through argv or shell history.
 
 Load it into a shell session with `eval "$(pnpm -s evals:env)"`. The key exists only in that session's environment.
 

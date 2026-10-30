@@ -12,7 +12,7 @@
     "typecheck": "pnpm -r typecheck",
     "test": "vitest run --coverage",
     "build": "pnpm -r build",
-    "evals:env": "python3 scripts/secrets.py env ANTHROPIC_API_KEY"
+    "evals:env": "python3 scripts/keychain.py env ANTHROPIC_API_KEY"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

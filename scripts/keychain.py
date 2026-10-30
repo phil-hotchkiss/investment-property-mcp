@@ -5,10 +5,10 @@ API keys live in the macOS Keychain under the service `rental-deal-math`.
 Processes fetch them at start, so nothing sits in `.zshrc` or `.env`.
 Off macOS (CI), `get` falls back to the env var of the same name.
 
-  python3 scripts/secrets.py set ANTHROPIC_API_KEY     # stdin or prompt, never argv
-  python3 scripts/secrets.py get ANTHROPIC_API_KEY
-  python3 scripts/secrets.py delete ANTHROPIC_API_KEY
-  eval "$(python3 scripts/secrets.py env ANTHROPIC_API_KEY)"
+  python3 scripts/keychain.py set ANTHROPIC_API_KEY     # stdin or prompt, never argv
+  python3 scripts/keychain.py get ANTHROPIC_API_KEY
+  python3 scripts/keychain.py delete ANTHROPIC_API_KEY
+  eval "$(python3 scripts/keychain.py env ANTHROPIC_API_KEY)"
 """
 
 import getpass
@@ -54,7 +54,7 @@ def delete(name: str) -> None:
 
 def main(argv: list[str]) -> int:
     if len(argv) < 2 or argv[0] not in ("get", "set", "delete", "env"):
-        print("usage: secrets.py get|set|delete NAME | env NAME...", file=sys.stderr)
+        print("usage: keychain.py get|set|delete NAME | env NAME...", file=sys.stderr)
         return 2
     cmd, names = argv[0], argv[1:]
     if cmd in ("set", "delete") and not _mac():

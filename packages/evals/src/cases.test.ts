@@ -87,6 +87,31 @@ describe('resolveCase', () => {
     ).toThrow(/nope\.deeper: dscr returned undefined/);
   });
 
+  test('a list of keyed compute blocks fills answers by key prefix', () => {
+    const rtp = { ...dscrInput, method: 'rentToPitia' };
+    const c = resolveCase({
+      ...base,
+      compute: [
+        { key: 'rentToPitia', tool: 'dscr', input: rtp },
+        { key: 'noi', tool: 'dscr', input: dscrInput },
+      ],
+      expected: { answer: { 'rentToPitia.dscr': {}, 'noi.dscr': {}, 'noi.annualNoi': {} } },
+    });
+    expect(c.expected.answer['rentToPitia.dscr']?.value).toBe(core.dscr(rtp).values.dscr);
+    expect(c.expected.answer['noi.dscr']?.value).toBe(core.dscr(dscrInput).values.dscr);
+    expect(c.expected.answer['noi.dscr']?.value).not.toBe(
+      c.expected.answer['rentToPitia.dscr']?.value,
+    );
+  });
+
+  test('with a compute list, an answer key must name a block', () => {
+    const compute = [{ key: 'noi', tool: 'dscr', input: dscrInput }];
+    for (const key of ['dscr', 'other.dscr'])
+      expect(() => resolveCase({ ...base, compute, expected: { answer: { [key]: {} } } })).toThrow(
+        `answer ${key}: must be <key>.<path> naming a compute block`,
+      );
+  });
+
   test('compute input that core rejects is an error', () => {
     const compute = { tool: 'dscr', input: { price: 1 } };
     expect(() => resolveCase({ ...base, compute, expected: { answer: { dscr: {} } } })).toThrow();

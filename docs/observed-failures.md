@@ -1,6 +1,6 @@
 # Observed failures
 
-A log of real agent behavior on deal math, observed by hand before or during development. Each entry names the eval case it became so the eval report can be traced back to something that actually happened. Entries are evidence, not anecdotes: quote the prompt and the model's words.
+A log of real agent behavior on deal math, observed by hand before or during development. Most entries are failures. Passes are logged when they change what the evals must measure. Each entry names the eval case it became so the eval report can be traced back to something that actually happened. Entries are evidence, not anecdotes: quote the prompt and the model's words.
 
 Format per entry: heading `## YYYY-MM-DD: short title`, then fields `Client and model`, `Prompt`, `What the model did`, `What was correct`, `Why it matters`, `Eval case` (id or "pending M3").
 
@@ -21,3 +21,12 @@ Format per entry: heading `## YYYY-MM-DD: short title`, then fields `Client and 
 - **What was correct:** The NOI method on the same inputs gives 31,800 annual NOI (38,400 rent minus 4,800 taxes minus 1,800 insurance) over 24,558 annual debt service, which is 1.295. Taxes and insurance move from the denominator to the numerator between methods, so the two ratios are not derivable from each other.
 - **Why it matters:** The model did in its head the one calculation it had not been handed a tool for, and stated it confidently. On a thinner deal the 0.06 gap decides pass or fail. Fix applied: the dscr tool description now says to call the tool again for the other method and explains why the two are not derivable. This is the README's concrete failure example.
 - **Eval case:** pending M3 (method ambiguity or chaining category: "DSCR both ways", expected two dscr calls, expected 1.232 and 1.295).
+
+## 2026-10-30: Without the MCP server, Claude Code computed the portfolio correctly by writing Python
+
+- **Client and model:** Claude Code, default model, MCP server removed. Bash tool available.
+- **Prompt:** "I have three rentals, all bought with 25% down at 7.25% for 30 years, no HOA. 1. Price 400,000, rent 3,200 a month, taxes 4,800 a year, insurance 1,800 a year. 2. Price 250,000, rent 2,900 a month, taxes 3,000 a year, insurance 1,200 a year. 3. Price 500,000, rent 2,800 a month, taxes 6,000 a year, insurance 2,400 a year. Does my portfolio cover its debt at a 1.25 DSCR? Use rent over PITIA."
+- **What the model did:** Wrote a Python one-liner in Bash to compute the amortized payments, then reported per-property DSCR 1.23, 1.78, 0.86 and portfolio 1.19 (8,900 over 7,484). It did not average the ratios. It gave three correct remedies: about 460 dollars more monthly rent, about 364 dollars less monthly PITIA, or about 53,000 dollars of principal paydown on property 3.
+- **What was correct:** Everything. Fixture values are 1.2324, 1.7801, 0.8594, portfolio 1.1892.
+- **Why it matters:** This was not a no-tools run. A model with a code interpreter and fully specified, clean inputs does the math correctly. The eval baseline harness must therefore be a bare API call with no tools at all, as the PRD specifies, or the baseline-versus-tools delta disappears. It also sharpens the project's claim: the toolkit's value is on messy inputs, missing information, unit traps, method ambiguity, weaker or cheaper models, and consistency across repeated runs, not on arithmetic a strong model can script. The README should say this rather than claim models cannot do deal math.
+- **Eval case:** None directly. Informs the `none` harness design and the single-tool-clean-input category, which is expected to show a small delta.

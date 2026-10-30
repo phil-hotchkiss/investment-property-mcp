@@ -1,0 +1,32 @@
+# Chaining: loan_payment for the payment, then dscr at 1.2 rent-to-PITIA on the same loan.
+id: chaining-loan-then-dscr-01
+category: chaining
+prompt: >-
+  borrowing 252k on a 315k house in Greenville SC, 7.375% 30 yr. whats the payment, and
+  does 2,400 rent cover it at 1.2 using rent to PITIA? taxes 2,100 a year, insurance 1,500
+compute:
+  tool: dscr
+  input:
+    price: 315000
+    monthlyRent: 2400
+    annualPropertyTax: 2100
+    annualInsurance: 1500
+    financing: { loanAmount: 252000 }
+    loan: { interestRatePct: 7.375, termYears: 30 }
+    method: rentToPitia
+    target: 1.2
+expected:
+  tools: { sequence: [loan_payment, dscr] }
+  args:
+    loan_payment.loanAmount: { value: 252000, tolerance: 0 }
+    loan_payment.interestRatePct: { value: 7.375, tolerance: 0 }
+    dscr.method: { value: rentToPitia }
+    dscr.target: { value: 1.2, tolerance: 0 }
+    dscr.monthlyRent: { value: 2400, tolerance: 0 }
+  answer:
+    dscr: { tolerance: 0.01 }
+    monthlyDebtService: { tolerance: 1 }
+  rubric: >-
+    Pass requires: the monthly principal and interest payment, the rent-to-PITIA DSCR named
+    as such, and a clear yes or no against 1.2. Fail if the DSCR divides rent by principal
+    and interest alone, leaving out taxes and insurance.

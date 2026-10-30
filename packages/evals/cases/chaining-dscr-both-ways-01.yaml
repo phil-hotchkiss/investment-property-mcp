@@ -1,0 +1,27 @@
+# Chaining: DSCR both ways needs two dscr calls; the NOI ratio cannot be derived from the first.
+id: chaining-dscr-both-ways-01
+category: chaining
+evidence: docs/observed-failures.md#2026-10-30-model-derived-the-noi-method-from-the-rent-to-pitia-result-and-got-it-wrong
+prompt: >-
+  DSCR on a 400k place, 3200 rent, 4800 taxes, 1800 insurance, 25% down at 7.25 for 30
+  years. give it to me both ways, rent to PITIA and NOI
+compute:
+  tool: dscr
+  input:
+    price: 400000
+    monthlyRent: 3200
+    annualPropertyTax: 4800
+    annualInsurance: 1800
+    financing: { downPaymentPct: 25 }
+    loan: { interestRatePct: 7.25, termYears: 30 }
+    method: noi
+expected:
+  tools: [dscr, dscr]
+  answer:
+    dscr: { tolerance: 0.01 }
+  rubric: >-
+    Pass requires: two dscr tool calls, one with method rentToPitia and one with method noi,
+    and both ratios reported, each labeled with its method, matching the two tool results.
+    The answer value graded here is the NOI ratio. Fail if the NOI ratio is reasoned from
+    the rent-to-PITIA result instead of a second call (for example "about the same" or
+    "minus HOA"), or if either ratio is reported without its method.

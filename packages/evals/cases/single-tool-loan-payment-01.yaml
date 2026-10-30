@@ -1,0 +1,15 @@
+# Baseline: one loan_payment call with clean, explicit inputs.
+id: single-tool-loan-payment-01
+category: single-tool
+prompt: What is the monthly payment on a $280,000 loan at 6.875% interest, 30-year fixed, fully amortizing?
+compute:
+  tool: loan_payment
+  input: { loanAmount: 280000, interestRatePct: 6.875, termYears: 30 }
+expected:
+  tools: [loan_payment]
+  args:
+    loan_payment.loanAmount: { value: 280000, tolerance: 0 }
+    loan_payment.interestRatePct: { value: 6.875, tolerance: 0 }
+    loan_payment.termYears: { value: 30, tolerance: 0 }
+  answer:
+    monthlyPayment: { tolerance: 1 }

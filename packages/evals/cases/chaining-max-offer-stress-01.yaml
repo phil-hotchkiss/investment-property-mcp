@@ -1,0 +1,35 @@
+# Chaining: max_offer finds the price, then stress_test probes rates at that price.
+id: chaining-max-offer-stress-01
+category: chaining
+prompt: >-
+  triplex in cleveland, rents are 1050 1050 and 1200. taxes run about 2.1% of price,
+  insurance 2,700/yr. 5 vacancy 8 mgmt. 25% down at 7.25 30yr. whats the most i can pay
+  and still hit 1.25 on NOI, and then at that price how high can rates go before it breaks 1.25
+compute:
+  tool: max_offer
+  input:
+    monthlyRent: 3300
+    propertyTaxPctOfPrice: 2.1
+    annualInsurance: 2700
+    vacancyPct: 5
+    managementPct: 8
+    financing: { downPaymentPct: 25 }
+    loan: { interestRatePct: 7.25, termYears: 30 }
+    targets: { minDscr: 1.25 }
+    dscrMethod: noi
+expected:
+  tools: { sequence: [max_offer, stress_test] }
+  args:
+    max_offer.monthlyRent: { value: 3300, tolerance: 0 }
+    max_offer.propertyTaxPctOfPrice: { value: 2.1, tolerance: 0 }
+    max_offer.targets.minDscr: { value: 1.25, tolerance: 0 }
+    max_offer.dscrMethod: { value: noi }
+    stress_test.dscrMethod: { value: noi }
+  answer:
+    maxPrice: { tolerance_pct: 1 }
+  rubric: >-
+    Pass requires: a max price from max_offer, then a stress_test run at that price with an
+    interest rate range, and a stated break-even rate where NOI DSCR falls to 1.25 taken from
+    the stress_test result. Fail if the stress test uses the asking price or any price other
+    than the max_offer result, if the break-even rate is estimated without the stress_test
+    call, or if the DSCR method is not named.

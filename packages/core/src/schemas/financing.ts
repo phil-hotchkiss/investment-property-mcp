@@ -5,7 +5,7 @@ import { pct } from './percent.js';
 import { ValidationError } from './result.js';
 
 export const financing = z
-  .object({
+  .strictObject({
     downPaymentPct: pct('downPaymentPct')
       .optional()
       .describe('Down payment as a percent number of the purchase price, 25 means 25%.'),

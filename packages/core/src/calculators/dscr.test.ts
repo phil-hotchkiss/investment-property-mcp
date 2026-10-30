@@ -144,3 +144,9 @@ test('validation: method is required, tax either-or, sub-1 vacancy allowed', () 
     ValidationError,
   );
 });
+
+test('an unknown field is a ValidationError that names it', () => {
+  expect(() => dscr({ ...property, vacancy: 5, method: 'noi' })).toThrow(ValidationError);
+  expect(() => dscr({ ...property, vacancy: 5, method: 'noi' })).toThrow(/vacancy/);
+  expect(() => dscr({ ...property, vacancy: 5, method: 'noi' })).toThrow(/nrecognized/);
+});

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { DscrValues } from '../schemas/outputs.js';
 import { computeNoi, noiAssumption, operatingExpensesShape } from '../schemas/expenses.js';
 import { financing, resolveFinancing } from '../schemas/financing.js';
 import { loan } from '../schemas/loan.js';
@@ -41,27 +42,10 @@ export const dscrTarget = z
   .describe('Minimum DSCR ratio to pass, e.g. 1.25. A ratio, not a percent. Default 1.25.');
 
 export const dscrInput = z
-  .object({ ...dscrPropertyShape, method: dscrMethod, target: dscrTarget })
+  .strictObject({ ...dscrPropertyShape, method: dscrMethod, target: dscrTarget })
   .superRefine((v, ctx) => propertyCostsChecks.forEach((check) => check(v, ctx)));
 
 export type DscrInput = z.input<typeof dscrInput>;
-
-export type DscrValues = {
-  /** null when the denominator (PITIA or annual debt service) is 0. */
-  dscr: number | null;
-  method: 'rentToPitia' | 'noi';
-  passes: boolean;
-  target: number;
-  monthlyRentUsed: number;
-  monthlyPitia: number;
-  monthlyDebtService: number;
-  /** Only for the noi method. */
-  annualNoi?: number;
-  loanAmount: number;
-  ltvPct: number;
-  downPaymentAmount: number;
-  downPaymentPct: number;
-};
 
 export function dscr(raw: unknown): CalcResult<DscrValues> {
   return computeDscr(parseInput(dscrInput, raw));

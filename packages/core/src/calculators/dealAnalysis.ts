@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { DealAnalysisValues } from '../schemas/outputs.js';
 import { type CalcResult, parseInput } from '../schemas/result.js';
 import { computeCashOnCash, dealChecks, dealShape } from './cashOnCash.js';
 import { computeDscr } from './dscr.js';
@@ -19,30 +20,10 @@ export const dealAnalysisShape = {
 };
 
 export const dealAnalysisInput = z
-  .object(dealAnalysisShape)
+  .strictObject(dealAnalysisShape)
   .superRefine((v, ctx) => dealChecks.forEach((check) => check(v, ctx)));
 
 export type DealAnalysisInput = z.input<typeof dealAnalysisInput>;
-
-export type DealAnalysisValues = {
-  annualGrossRent: number;
-  annualNoi: number;
-  /** Percent number, NOI / price. */
-  capRatePct: number;
-  /** Price / annual gross scheduled rent. null when rent is 0. */
-  grm: number | null;
-  /** null when the denominator is 0. */
-  dscr: number | null;
-  dscrMethod: 'rentToPitia' | 'noi';
-  dscrPasses: boolean;
-  monthlyPitia: number;
-  monthlyCashFlow: number;
-  annualCashFlow: number;
-  cashOnCashPct: number | null;
-  totalCashInvested: number;
-  loanAmount: number;
-  ltvPct: number;
-};
 
 export function dealAnalysis(raw: unknown): CalcResult<DealAnalysisValues> {
   return computeDealAnalysis(parseInput(dealAnalysisInput, raw));

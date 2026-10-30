@@ -1,10 +1,11 @@
 import { z } from 'zod';
+import type { PortfolioProperty, PortfolioRollupValues } from '../schemas/outputs.js';
 import { noiAssumption } from '../schemas/expenses.js';
 import { propertyCostsChecks } from '../schemas/property.js';
 import { type CalcResult, parseInput } from '../schemas/result.js';
 import { computeDscr, dscrMethod, dscrPropertyShape, dscrTarget } from './dscr.js';
 
-export const portfolioRollupInput = z.object({
+export const portfolioRollupInput = z.strictObject({
   method: dscrMethod.describe(
     'Required, no default, applies to every property. rentToPitia: total gross monthly rent / total PITIA, the common DSCR-loan method. noi: total annual NOI / total annual debt service, the traditional commercial method.',
   ),
@@ -14,7 +15,7 @@ export const portfolioRollupInput = z.object({
   properties: z
     .array(
       z
-        .object({
+        .strictObject({
           name: z
             .string()
             .optional()
@@ -31,32 +32,6 @@ export const portfolioRollupInput = z.object({
 });
 
 export type PortfolioRollupInput = z.input<typeof portfolioRollupInput>;
-
-export type PortfolioProperty = {
-  name: string;
-  dscr: number | null;
-  passes: boolean;
-  monthlyRentUsed: number;
-  /** rentToPitia only. */
-  monthlyPitia?: number;
-  /** noi only. */
-  annualNoi?: number;
-  /** noi only. */
-  annualDebtService?: number;
-};
-
-export type PortfolioRollupValues = {
-  /** Total income / total debt service. null when total debt service is 0. */
-  portfolioDscr: number | null;
-  method: 'rentToPitia' | 'noi';
-  target: number;
-  passes: boolean;
-  perProperty: PortfolioProperty[];
-  /** Lowest non-null per-property DSCR. null when every property's DSCR is null. */
-  weakest: { name: string; dscr: number } | null;
-  /** Mean of the per-property ratios. For comparison only; not the portfolio DSCR. */
-  averageOfRatios: number | null;
-};
 
 export function portfolioRollup(raw: unknown): CalcResult<PortfolioRollupValues> {
   const x = parseInput(portfolioRollupInput, raw);

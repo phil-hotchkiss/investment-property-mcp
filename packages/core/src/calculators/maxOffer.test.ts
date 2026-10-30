@@ -240,8 +240,9 @@ describe('validation', () => {
     ]);
   });
   test('price is not an input field', () => {
-    const r = maxOffer({ ...property, price: 1, targets: { minMonthlyCashFlow: 0 } });
-    expect(r.values.maxPrice).toBeGreaterThan(1);
+    expect(() => maxOffer({ ...property, price: 1, targets: { minMonthlyCashFlow: 0 } })).toThrow(
+      /price/,
+    );
   });
   test('upper bound at or below the lower bound', () => {
     expect(

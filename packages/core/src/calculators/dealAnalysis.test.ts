@@ -73,7 +73,10 @@ describe('consistency with cashOnCash and dscr on identical inputs', () => {
   test.each(['rentToPitia', 'noi'] as const)('%s', (method) => {
     const d = dealAnalysis({ ...property, dscrMethod: method });
     const c = cashOnCash(property);
-    const s = dscr({ ...property, method });
+    const dscrProperty = structuredClone(property) as Partial<typeof property>;
+    for (const k of ['closingCostsPctOfPrice', 'rehabCost', 'reservesMonthsOfPitia'] as const)
+      delete dscrProperty[k];
+    const s = dscr({ ...dscrProperty, method });
     expect(d.values).toMatchObject({
       annualNoi: c.values.annualNoi,
       annualCashFlow: c.values.annualCashFlow,

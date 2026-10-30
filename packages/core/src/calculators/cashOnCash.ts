@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { CashOnCashValues } from '../schemas/outputs.js';
 import {
   cashInvestedChecks,
   cashInvestedShape,
@@ -31,29 +32,10 @@ export const dealShape = {
 export const dealChecks = [...propertyCostsChecks, ...cashInvestedChecks];
 
 export const cashOnCashInput = z
-  .object(dealShape)
+  .strictObject(dealShape)
   .superRefine((v, ctx) => dealChecks.forEach((check) => check(v, ctx)));
 
 export type CashOnCashInput = z.input<typeof cashOnCashInput>;
-
-export type CashOnCashValues = {
-  annualNoi: number;
-  annualDebtService: number;
-  /** NOI minus debt service, pre-tax. */
-  annualCashFlow: number;
-  monthlyCashFlow: number;
-  monthlyPitia: number;
-  monthlyRentUsed: number;
-  totalCashInvested: number;
-  downPaymentAmount: number;
-  closingCosts: number;
-  rehabCost: number;
-  reserves: number;
-  /** Percent number, 6.4 means 6.4%. null when total cash invested is 0. */
-  cashOnCashPct: number | null;
-  loanAmount: number;
-  ltvPct: number;
-};
 
 export function cashOnCash(raw: unknown): CalcResult<CashOnCashValues> {
   return computeCashOnCash(parseInput(cashOnCashInput, raw));

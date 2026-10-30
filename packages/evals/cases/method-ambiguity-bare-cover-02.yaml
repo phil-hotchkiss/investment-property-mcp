@@ -1,0 +1,14 @@
+# Method ambiguity: a townhome with HOA, all inputs given, target given, no method; the model should ask.
+id: method-ambiguity-bare-cover-02
+category: method-ambiguity
+prompt: >-
+  townhome in Charlotte 298k, rent 2,250, HOA 180 a month, taxes 2,600 a year, insurance
+  1,100. 25% down 6.75 30 yr. will it cover its debt at 1.25?
+expected:
+  tools: []
+  expect_question: true
+  rubric: >-
+    Pass requires: the reply asks which DSCR method to use, naming both options (rent to
+    PITIA and NOI, in any wording), before computing anything. Fail if it presents a DSCR
+    figure without the user choosing a method, or if it asks for inputs the prompt already
+    gave.

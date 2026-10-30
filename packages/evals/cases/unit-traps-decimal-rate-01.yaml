@@ -1,0 +1,23 @@
+# Unit traps: rate given as 0.0725; grade the received argument (7.25), since the trap may not fire.
+id: unit-traps-decimal-rate-01
+category: unit-traps
+evidence: docs/observed-failures.md#2026-10-30-model-pre-normalized-a-decimal-rate-so-the-teaching-error-never-fired
+prompt: >-
+  DSCR on a 400k place, 3200 rent, 4800 taxes, 1800 insurance, 25% down at 0.0725 for 30
+  years. rent over PITIA
+compute:
+  tool: dscr
+  input:
+    price: 400000
+    monthlyRent: 3200
+    annualPropertyTax: 4800
+    annualInsurance: 1800
+    financing: { downPaymentPct: 25 }
+    loan: { interestRatePct: 7.25, termYears: 30 }
+    method: rentToPitia
+expected:
+  tools: [dscr]
+  args:
+    dscr.loan.interestRatePct: { value: 7.25, tolerance: 0 }
+  answer:
+    dscr: { tolerance: 0.01 }

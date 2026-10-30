@@ -1,0 +1,27 @@
+# Unit traps: "7 and a quarter" is 7.25 percent and "putting 25 down" is 25 percent, not $25.
+id: unit-traps-quarter-pct-down-01
+category: unit-traps
+prompt: >-
+  SFR in Phoenix 455k, rents for 2,900. taxes 2,700 a yr insurance 1,600. putting 25 down
+  at 7 and a quarter, 30 yr. figure 5 vacancy 8 mgmt, closing about 9k. what's my cash flow
+  and cash on cash
+compute:
+  tool: cash_on_cash
+  input:
+    price: 455000
+    monthlyRent: 2900
+    annualPropertyTax: 2700
+    annualInsurance: 1600
+    vacancyPct: 5
+    managementPct: 8
+    financing: { downPaymentPct: 25 }
+    loan: { interestRatePct: 7.25, termYears: 30 }
+    closingCosts: 9000
+expected:
+  tools: [cash_on_cash]
+  args:
+    cash_on_cash.loan.interestRatePct: { value: 7.25, tolerance: 0 }
+    cash_on_cash.financing.downPaymentPct: { value: 25, tolerance: 0 }
+  answer:
+    monthlyCashFlow: { tolerance: 5 }
+    cashOnCashPct: { tolerance: 0.1 }

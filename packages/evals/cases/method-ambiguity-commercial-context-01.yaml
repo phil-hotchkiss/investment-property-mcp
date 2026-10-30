@@ -1,0 +1,35 @@
+# Method ambiguity: a commercial framing makes NOI a fair stated assumption.
+id: method-ambiguity-commercial-context-01
+category: method-ambiguity
+prompt: >-
+  underwriting a 6 unit in Milwaukee like a commercial deal. 540k, gross rents 5,400/mo,
+  7 vacancy, 8 mgmt, 6 maintenance, 5 capex. taxes 11,200 yr, insurance 4,800. 25% down at
+  7.4, 25 yr am. what's the coverage, bank wants 1.25
+compute:
+  tool: dscr
+  input:
+    price: 540000
+    monthlyRent: 5400
+    annualPropertyTax: 11200
+    annualInsurance: 4800
+    vacancyPct: 7
+    managementPct: 8
+    maintenancePct: 6
+    capexPct: 5
+    financing: { downPaymentPct: 25 }
+    loan: { interestRatePct: 7.4, termYears: 25 }
+    method: noi
+    target: 1.25
+expected:
+  tools: [dscr]
+  args:
+    dscr.method: { value: noi }
+    dscr.loan.termYears: { value: 25, tolerance: 0 }
+  answer:
+    dscr: { tolerance: 0.01 }
+  rubric: >-
+    Pass requires: the answer explicitly names the DSCR method used as NOI over debt service
+    (any wording such as "NOI method" or "net operating income divided by debt service") and
+    says it was chosen because of the commercial framing, plus a clear yes or no against
+    1.25. Fail if a DSCR
+    figure appears with no method named.

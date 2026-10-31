@@ -137,28 +137,45 @@ export function grade(c: Case, t: Transcript, judge?: JudgeVerdict): Grade {
     toolSelection = ok ? 'pass' : 'fail';
   }
 
-  // Arguments. na for the none harness, which has no calls to inspect.
+  // Arguments. na for the none harness, which has no calls to inspect. Per tool, the run passes
+  // when any one call to it satisfies every expected field, so a corrected retry after a tool
+  // error counts. When none does, the details describe the first call.
   let args: Verdict = 'na';
   if (canCallTools && Object.keys(e.args).length) {
     args = 'pass';
+    const byTool = new Map<string, [string, string[], (typeof e.args)[string]][]>();
     for (const [key, want] of Object.entries(e.args)) {
       const [tool, ...path] = key.split('.');
-      const call = t.toolCalls.find((tc) => tc.name === tool);
-      const actual = call && get(call.args, path);
-      let problem: string | undefined;
-      if (!call) problem = `no call to ${tool}`;
-      else if (actual === undefined) problem = 'missing';
-      else if (typeof want.value === 'number')
-        problem =
-          typeof actual === 'number' && within(actual, want.value, want)
-            ? undefined
-            : `got ${JSON.stringify(actual)}, expected ${want.value}`;
-      else if (!isDeepStrictEqual(actual, want.value))
-        problem = `got ${JSON.stringify(actual)}, expected ${JSON.stringify(want.value)}`;
-      if (problem) {
-        details.push(`args: ${key} ${problem}`);
-        args = 'fail';
+      byTool.set(tool!, [...(byTool.get(tool!) ?? []), [key, path, want]]);
+    }
+    for (const [tool, wants] of byTool) {
+      const calls = t.toolCalls.filter((tc) => tc.name === tool);
+      const problemsOf = (callArgs: unknown) =>
+        wants.flatMap(([key, path, want]) => {
+          const actual = get(callArgs, path);
+          let problem: string | undefined;
+          if (actual === undefined) problem = 'missing';
+          else if (typeof want.value === 'number')
+            problem =
+              typeof actual === 'number' && within(actual, want.value, want)
+                ? undefined
+                : `got ${JSON.stringify(actual)}, expected ${want.value}`;
+          else if (!isDeepStrictEqual(actual, want.value))
+            problem = `got ${JSON.stringify(actual)}, expected ${JSON.stringify(want.value)}`;
+          return problem ? [`args: ${key} ${problem}`] : [];
+        });
+      const matched = calls.findIndex((tc) => problemsOf(tc.args).length === 0);
+      if (matched > -1) {
+        if (calls.length > 1)
+          details.push(`args: ${tool} matched call ${matched + 1} of ${calls.length}`);
+        continue;
       }
+      args = 'fail';
+      details.push(
+        ...(calls.length
+          ? problemsOf(calls[0]!.args)
+          : wants.map(([key]) => `args: ${key} no call to ${tool}`)),
+      );
     }
   }
 

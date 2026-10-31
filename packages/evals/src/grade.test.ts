@@ -160,12 +160,34 @@ describe('args', () => {
     ]);
   });
 
-  test('uses the first call to the tool; no call fails', () => {
-    const first = { ...dscrArgs, method: 'noi' };
-    expect(grade(c, tr({ toolCalls: [call('dscr', first), call('dscr', dscrArgs)] })).args).toBe(
-      'fail',
-    );
+  test('any matching call passes and is recorded; no call fails', () => {
+    const wrong = { ...dscrArgs, method: 'noi' };
+    const g = grade(c, tr({ toolCalls: [call('dscr', wrong), call('dscr', dscrArgs)] }));
+    expect(g.args).toBe('pass');
+    expect(g.details).toContain('args: dscr matched call 2 of 2');
     expect(grade(c, tr()).details).toContain('args: dscr.method no call to dscr');
+  });
+
+  test('fields must match on the same call; failures describe the first call', () => {
+    const rateOnly = { ...dscrArgs, method: 'noi' };
+    const methodOnly = { ...dscrArgs, loan: { termYears: 30 } };
+    const g = grade(c, tr({ toolCalls: [call('dscr', rateOnly), call('dscr', methodOnly)] }));
+    expect(g.args).toBe('fail');
+    expect(g.details).toEqual(['args: dscr.method got "noi", expected "rentToPitia"']);
+  });
+
+  test('sequence order is still checked when args match a later call', () => {
+    const seq = mk({
+      tools: { sequence: ['max_offer', 'dscr'] },
+      args: { 'dscr.method': { value: 'rentToPitia' } },
+    });
+    const g = grade(
+      seq,
+      tr({
+        toolCalls: [call('dscr', { method: 'noi' }), call('max_offer'), call('dscr', dscrArgs)],
+      }),
+    );
+    expect(g).toMatchObject({ toolSelection: 'fail', args: 'pass' });
   });
 
   test('na when no args expected', () => {

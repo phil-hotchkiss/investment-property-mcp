@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { resolveCase } from './cases.js';
-import { extractNumbers, grade, within } from './grade.js';
+import { answerFound, extractNumbers, grade, within } from './grade.js';
 import { dscrArgs } from './test/fake.js';
 import type { Transcript } from './transcript.js';
 
@@ -37,7 +37,38 @@ describe('extractNumbers', () => {
     ['vacancy 6-8%', [6, 8]],
     ['5km and 3 kids', [5, 3]],
     ['no numbers', []],
+    ['cash flow \u2212$473 a month', [-473]],
+    ['cash flow \u2013473', [-473]],
+    ['cash flow \u2014$1,234.50', [-1234.5]],
+    ['cash flow (1,234) a year', [-1234]],
+    ['cash flow ($473) a month', [-473]],
+    ['(30 years)', [30]],
+    ['(5%)', [5]],
   ])('%s', (text, numbers) => expect(extractNumbers(text)).toEqual(numbers));
+});
+
+describe('answerFound', () => {
+  test.each([
+    'You would lose $473 a month.',
+    'a monthly loss of $473',
+    'cash flow is negative: $473 per month',
+    'a $473 shortfall every month',
+    'You come up $473 short each month',
+    'a deficit of 473 a month',
+  ])('unsigned figure near a loss word matches a negative: %s', (text) =>
+    expect(answerFound(text, -473.49, { tolerance: 5 })).toBe(true),
+  );
+
+  test('unsigned figure with no loss word nearby does not match a negative', () => {
+    expect(answerFound('Cash flow is $473 a month.', -473.49, { tolerance: 5 })).toBe(false);
+    const far = 'You lose money overall.' + ' '.repeat(50) + 'Cash flow $473.';
+    expect(answerFound(far, -473.49, { tolerance: 5 })).toBe(false);
+  });
+
+  test('a loss word does not make a positive expectation accept a negative', () => {
+    expect(answerFound('loss of $473', 473, { tolerance: 5 })).toBe(true);
+    expect(answerFound('-$473 loss', 473, { tolerance: 5 })).toBe(false);
+  });
 });
 
 describe('within', () => {

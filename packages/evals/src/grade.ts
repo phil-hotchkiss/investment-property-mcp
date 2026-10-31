@@ -25,15 +25,47 @@ export function within(actual: number, expected: number, t: Tolerance): boolean 
 }
 
 /**
- * Every number written in the text. Strips `$` and thousands commas, ignores a `%` suffix, and
- * reads a `k`/`K` suffix as thousands, so "$392,859", "393k", "7.25%" and "1.23" all parse.
- * A minus counts only at the start of a word, so "30-year" and "6-8%" do not go negative.
+ * Every number written in the text, with where it sits. Strips `$` and thousands commas, ignores a
+ * `%` suffix, and reads a `k`/`K` suffix as thousands, so "$392,859", "393k", "7.25%" and "1.23" all
+ * parse. Unicode minus, en dash, and em dash read as a hyphen. A minus counts only at the start of
+ * a word, so "30-year" and "6-8%" do not go negative. Accounting parentheses, "(1,234)" or
+ * "($473)", read as negative.
  * ponytail: no "million", "7 and a quarter", or spelled-out numbers; add when a case needs them.
+ * A bare "(2)" list marker reads as -2, which only matters if a case expects -2.
  */
-export function extractNumbers(text: string): number[] {
-  const re = /(?:(?<!\w)(-))?\$?(\d[\d,]*(?:\.\d+)?)([kK](?![a-zA-Z]))?/g;
-  return [...text.matchAll(re)].map(
-    ([, minus, digits, k]) => (minus ? -1 : 1) * Number(digits!.replace(/,/g, '')) * (k ? 1000 : 1),
+export function scanNumbers(text: string): { value: number; start: number; end: number }[] {
+  // One char for one char, so indices still point into the original text.
+  const normalized = text.replace(/[\u2212\u2013\u2014]/g, '-');
+  const re = /(?:(?<!\w)(-)|(\())?\$?(\d[\d,]*(?:\.\d+)?)([kK](?![a-zA-Z]))?(\))?/g;
+  return [...normalized.matchAll(re)].map((m) => {
+    const [all, minus, open, digits, k, close] = m;
+    const negative = !!minus || (!!open && !!close);
+    return {
+      value: (negative ? -1 : 1) * Number(digits!.replace(/,/g, '')) * (k ? 1000 : 1),
+      start: m.index,
+      end: m.index + all.length,
+    };
+  });
+}
+
+export const extractNumbers = (text: string): number[] => scanNumbers(text).map((n) => n.value);
+
+/** Words that say a figure is negative when the model writes it unsigned: "lose $473 a month". */
+const lossWords = /negative|loss|lose|short|deficit/i;
+const CONTEXT_CHARS = 40;
+
+/**
+ * True when some number in the text matches. For a negative expected value, the unsigned figure
+ * also matches when a loss word sits within CONTEXT_CHARS characters of it.
+ */
+export function answerFound(text: string, expected: number, t: Tolerance): boolean {
+  return scanNumbers(text).some(
+    ({ value, start, end }) =>
+      within(value, expected, t) ||
+      (expected < 0 &&
+        value > 0 &&
+        within(-value, expected, t) &&
+        lossWords.test(text.slice(Math.max(0, start - CONTEXT_CHARS), end + CONTEXT_CHARS))),
   );
 }
 
@@ -120,11 +152,10 @@ export function grade(c: Case, t: Transcript, judge?: JudgeVerdict): Grade {
   let answer: Verdict = 'na';
   if (Object.keys(e.answer).length) {
     answer = 'pass';
-    const numbers = extractNumbers(t.finalText);
     for (const [key, want] of Object.entries(e.answer)) {
       // resolveCase guarantees value is set; the fallback only satisfies the type.
       const value = want.value ?? NaN;
-      if (!numbers.some((n) => within(n, value, want))) {
+      if (!answerFound(t.finalText, value, want)) {
         details.push(`answer: ${key} expected ${value}, not found in final text`);
         answer = 'fail';
       }

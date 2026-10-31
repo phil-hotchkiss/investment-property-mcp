@@ -87,7 +87,7 @@ The `none` harness cannot call tools, so its `toolSelection` and `args` are alwa
 
 ### Number extraction
 
-The answer check reads every number in the final text. It strips `$` and thousands commas, ignores a `%` suffix, and reads a `k` or `K` suffix as thousands. So `$392,859`, `393k` (392859 at 1%), `7.25%`, and `1.23` all parse. A minus counts only at the start of a word, so `30-year` is 30. It does not read "million" or spelled-out numbers. Matching any number in the text is lenient on purpose: the grader checks that the right figure appears, and the judge checks the phrasing.
+The answer check reads every number in the final text. It strips `$` and thousands commas, ignores a `%` suffix, and reads a `k` or `K` suffix as thousands. So `$392,859`, `393k` (392859 at 1%), `7.25%`, and `1.23` all parse. A Unicode minus (U+2212), en dash, or em dash reads as a hyphen, and a minus counts only at the start of a word, so `30-year` is 30. Accounting parentheses, `(1,234)` or `($473)`, read as negative. For a negative expected value, the unsigned figure also matches when one of "negative", "loss", "lose", "short" (so "shortfall"), or "deficit" appears within 40 characters of it, so "you would lose $473 a month" matches -473. It does not read "million" or spelled-out numbers. Matching any number in the text is lenient on purpose: the grader checks that the right figure appears, and the judge checks the phrasing.
 
 ### Judge
 

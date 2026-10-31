@@ -60,7 +60,7 @@ repo/
   packages/
     core/          pure TS calculators + zod schemas, no I/O
     mcp-server/    MCP server exposing core as tools (stdio)
-    evals/         eval cases, runner, grader, reports, agent harness adapters
+    evals/         eval cases, runner, grader, agent harness adapters
   apps/
     web/           React + Vite UI over core
     agent-ts/      LangChain.js chat agent over the MCP server
@@ -69,6 +69,10 @@ repo/
     agent/         shared system prompt, read by both agents
     decisions/     short ADRs for non-obvious choices
     PRD.md
+  evals/
+    README.md      how to run and read evals
+    observed-failures.md
+    runs/          one report, summary, and gzipped transcript archive per run
   .github/workflows/
 ```
 
@@ -82,6 +86,7 @@ repo/
 - LangChain.js: `langchain`, `@langchain/core`, `@langchain/anthropic`, `@langchain/mcp-adapters`, `@langchain/langgraph`
 - LangChain Python: `langchain`, `langchain-anthropic`, `langchain-mcp-adapters`, `langgraph`; Python 3.12, `uv`, `ruff`, `pytest`
 - React + Vite for the web app; PostHog JS for analytics
+- PostHog LLM analytics (`@posthog/ai` in TypeScript, `posthog` with the LangChain callback in Python) for traces of eval runs and agent sessions
 - MIT license
 
 ## Core library
@@ -170,7 +175,7 @@ Two chat agents, `apps/agent-ts` and `apps/agent-py`, built on LangChain in each
 - CLI chat: `pnpm --filter agent-ts chat` and `uv run agent-py chat`. Streams tokens, prints each tool call and its result in a dim block so the user sees the reasoning, keeps conversation history for the session.
 - One-shot mode: `chat --prompt "..." --json` runs a single turn and writes a JSON transcript to stdout: messages, every tool call with arguments and result, the final answer, and token usage. This is the interface the eval harness consumes, so the two agents and the direct Anthropic SDK runner are graded identically.
 - Teaching errors flow through. When the MCP server returns a validation error, the agent must retry with corrected arguments, not apologize and stop. This is an eval case.
-- Optional LangSmith tracing when `LANGSMITH_TRACING=true`. No other observability in v1.
+- Traces go to PostHog LLM analytics through the LangChain callback handler, tagged the same way as eval runs. LangSmith is optional via `LANGSMITH_TRACING=true`.
 
 ### Tests
 
@@ -249,6 +254,14 @@ Run the same prompts with no tools. The README headline is the delta between bas
 
 Model name, run count, and API key come from environment variables. Evals run locally and from a manual GitHub Actions workflow, never on every push.
 
+### Evidence and regrading
+
+Every run writes, under `evals/runs/<name>`, the markdown report, the summary JSON, and a gzipped JSON lines archive of the raw transcripts: the exact messages sent and received, tool definitions, tool results, usage, and model ids. The summary records provenance: repo commit, hashes of the system prompt, the tool definitions, and each case file, the model ids, and the pricing date. All three files are committed. `pnpm evals regrade <run>` reruns the grader and judge over an archived run without new model calls, refuses when the case files or tool definitions have changed since the run unless forced, and publishes a new report that cites the original. Grader changes are therefore regrades, not reruns. Reruns happen only when the model's inputs changed.
+
+### Tracing
+
+Every model call in the runner and the agents is traced to PostHog LLM analytics, tagged with case id, harness, model, run number, and repo commit. Grades are attached to traces as evaluation events. PostHog is the exploration surface for failures and cost; the committed archives remain the system of record so a stranger can verify the README numbers without access to the PostHog project. The PostHog project key is read from the environment like the Anthropic key and the runner works without it.
+
 ## React web app
 
 `apps/web` is a small, idiomatic React app over core. It is a showcase of React skill, not a port of the old app. Cut it first if the schedule slips.
@@ -294,7 +307,7 @@ Work in this order and stop for Phil's review after each. If the schedule slips,
 1. **M0: Inventory** (day 1). Done when the Milestone 0 report from Source material is reviewed and the reuse/refactor/build mapping is approved.
 2. **M1: Core library** (days 2 to 6). Done when all seven calculators pass their fixtures, coverage on core is 95%+, CI is green, and the repo is public.
 3. **M2: MCP server** (days 7 to 9). Done when every tool works from Claude Desktop or Claude Code using the README config, and a bad-unit input returns the teaching error.
-4. **M3: Evals** (days 10 to 14). Done when 25+ cases run with one command, baseline and direct reports are generated, and the README results table is filled from a real run.
+4. **M3: Evals** (days 10 to 14). Done when 25+ cases run with one command, baseline and direct reports are generated, and the README results table is filled from a real run, and an archived, regradeable run exists for each model.
 5. **M4: TypeScript agent** (days 15 to 17). Done when `agent-ts` chats from a fresh clone, the fake-model unit tests pass in CI, and `pnpm evals --harness agent-ts` produces a report alongside the direct harness per category.
 6. **M5: Python agent** (days 18 to 21). Done when `agent-py` meets the same bar as M4 using the prebuilt graph, then passes the same evals with the custom clarification-gate graph, and the method ambiguity category shows the gate firing in the transcripts. The parity table shows all three harnesses side by side.
 7. **M6: README and ADRs** (day 22). Done when the README meets every required section and a stranger could run the MCP server and one agent in under five minutes.

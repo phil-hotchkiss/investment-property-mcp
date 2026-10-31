@@ -86,7 +86,7 @@ repo/
 - LangChain.js: `langchain`, `@langchain/core`, `@langchain/anthropic`, `@langchain/mcp-adapters`, `@langchain/langgraph`
 - LangChain Python: `langchain`, `langchain-anthropic`, `langchain-mcp-adapters`, `langgraph`; Python 3.12, `uv`, `ruff`, `pytest`
 - React + Vite for the web app; PostHog JS for analytics
-- PostHog LLM analytics (`@posthog/ai` in TypeScript, `posthog` with the LangChain callback in Python) for traces of eval runs and agent sessions
+- LangSmith for tracing eval runs and agent sessions (`langsmith` SDK in both languages; LangChain traces natively, the direct harness uses the Anthropic SDK wrapper)
 - MIT license
 
 ## Core library
@@ -175,7 +175,7 @@ Two chat agents, `apps/agent-ts` and `apps/agent-py`, built on LangChain in each
 - CLI chat: `pnpm --filter agent-ts chat` and `uv run agent-py chat`. Streams tokens, prints each tool call and its result in a dim block so the user sees the reasoning, keeps conversation history for the session.
 - One-shot mode: `chat --prompt "..." --json` runs a single turn and writes a JSON transcript to stdout: messages, every tool call with arguments and result, the final answer, and token usage. This is the interface the eval harness consumes, so the two agents and the direct Anthropic SDK runner are graded identically.
 - Teaching errors flow through. When the MCP server returns a validation error, the agent must retry with corrected arguments, not apologize and stop. This is an eval case.
-- Traces go to PostHog LLM analytics through the LangChain callback handler, tagged the same way as eval runs. LangSmith is optional via `LANGSMITH_TRACING=true`.
+- Traces go to LangSmith through LangChain's native tracing when `LANGSMITH_TRACING=true`, tagged the same way as eval runs.
 
 ### Tests
 
@@ -260,7 +260,7 @@ Every run writes, under `evals/runs/<name>`, the markdown report, the summary JS
 
 ### Tracing
 
-Every model call in the runner and the agents is traced to PostHog LLM analytics, tagged with case id, harness, model, run number, and repo commit. Grades are attached to traces as evaluation events. PostHog is the exploration surface for failures and cost; the committed archives remain the system of record so a stranger can verify the README numbers without access to the PostHog project. The PostHog project key is read from the environment like the Anthropic key and the runner works without it.
+Every model call in the runner and the agents is traced to LangSmith, tagged with case id, harness, model, run number, and repo commit. The case files are mirrored into a LangSmith dataset and each eval run is recorded as a LangSmith experiment so runs can be compared side by side. Grades are attached as feedback on each trace. LangSmith is the exploration surface for failures and cost; the committed archives remain the system of record so a stranger can verify the README numbers without a LangSmith account. Tracing is on when `LANGSMITH_TRACING=true` and `LANGSMITH_API_KEY` are set, and the runner works without them.
 
 ## React web app
 

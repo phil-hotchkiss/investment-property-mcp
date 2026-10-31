@@ -37,7 +37,7 @@ The estimate assumes 4 characters per token, one call for `none`, and three call
 
 ## Harnesses
 
-- `none`: one Messages API call with the system prompt in `docs/agent/system-prompt.md` and the case prompt. No tools.
+- `none`: one Messages API call with the system prompt in `prompts/agent-system.md` and the case prompt. No tools.
 - `direct`: starts the MCP server as a child process over stdio, lists its tools, and runs a plain Anthropic tool-use loop for at most 8 model calls. Tool errors go back to the model as `tool_result` blocks with `is_error: true`.
 - `agent-ts`, `agent-py`: the LangChain agents in one-shot JSON mode, from M4 and M5.
 

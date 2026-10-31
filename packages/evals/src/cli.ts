@@ -30,7 +30,7 @@ export const paths = {
   results: resolve(repoRoot, 'packages/evals/results'),
   /** Committed reports, copied here by --publish. */
   reports: resolve(repoRoot, 'packages/evals/reports'),
-  systemPrompt: resolve(repoRoot, 'docs/agent/system-prompt.md'),
+  systemPrompt: resolve(repoRoot, 'prompts/agent-system.md'),
 };
 
 const pending: Partial<Record<HarnessName, string>> = { 'agent-ts': 'M4', 'agent-py': 'M5' };

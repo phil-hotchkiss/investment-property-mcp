@@ -65,10 +65,14 @@ repo/
     web/           React + Vite UI over core
     agent-ts/      LangChain.js chat agent over the MCP server
     agent-py/      LangChain Python chat agent over the MCP server
+  prompts/
+    agent-system.md  shared system prompt, read by the eval runner and both agents
   docs/
-    agent/         shared system prompt, read by both agents
-    decisions/     short ADRs for non-obvious choices
-    PRD.md
+    prd.md         this document
+    decisions/     short ADRs for non-obvious choices, plus the ADR backlog
+    fixtures/      worked arithmetic behind every asserted test number
+    guides/        MCP client setup, secrets
+    history/       milestone records such as the M0 inventory
   evals/
     README.md      how to run and read evals
     observed-failures.md
@@ -213,7 +217,7 @@ expected:
   must_mention: ["DSCR method"]
 ```
 
-Cases may carry an optional `evidence` field pointing at an entry in `docs/observed-failures.md`; the eval report lists it next to the case.
+Cases may carry an optional `evidence` field pointing at an entry in `evals/observed-failures.md`; the eval report lists it next to the case.
 
 Expected numeric answers are computed by calling core directly, never typed by hand.
 

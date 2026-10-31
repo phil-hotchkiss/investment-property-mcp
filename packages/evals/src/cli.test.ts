@@ -91,6 +91,7 @@ describe('main', () => {
     [[], {}, 'ANTHROPIC_API_KEY is not set. See docs/secrets.md.'],
     [[], { ANTHROPIC_API_KEY: 'k', EVAL_MAX_USD: '0.0001' }, 'exceeds EVAL_MAX_USD'],
     [['--harness', 'agent-ts'], { ANTHROPIC_API_KEY: 'k' }, 'agent-ts is not implemented until M4'],
+    [['--publish', '../x'], {}, '--publish name must be'],
   ])('%j %j fails: %s', async (argv, env, message) => {
     const { code, out } = await cli(argv, env);
     expect(code).toBe(1);
@@ -142,7 +143,7 @@ describe('main', () => {
     const { client, requests } = fakeClient(answer(1));
     const r = await cli(
       ['--harness', 'none', '--runs', '1', '--cases', 'dscr-01'],
-      {},
+      { INIT_CWD: tmpdir() },
       {
         client,
         now: () => new Date('2000-01-01T00:00:00.000Z'),
@@ -153,6 +154,27 @@ describe('main', () => {
     expect(r.out).toContain(dir);
     rmSync(dir, { recursive: true });
     expect(requests[0]?.system).toMatch(/ask which one they want/);
+  });
+
+  test('default results dir is under the repo, not INIT_CWD', () => {
+    expect(paths.results).toBe(join(paths.cases, '..', 'results'));
+    expect(paths.results.endsWith(join('packages', 'evals', 'results'))).toBe(true);
+    expect(paths.reports.endsWith(join('packages', 'evals', 'reports'))).toBe(true);
+  });
+
+  test('--publish copies only report.md and summary.json to reports/<name>', async () => {
+    const out = mkdtempSync(join(tmpdir(), 'evals-out-'));
+    const reports = mkdtempSync(join(tmpdir(), 'evals-reports-'));
+    const { client } = fakeClient(answer(1));
+    const r = await cli(
+      ['--harness', 'none', '--runs', '1', '--cases', 'dscr-01', '--out', out, '--publish', 'x-1'],
+      { INIT_CWD: '/somewhere/else' },
+      { client, reportsDir: reports },
+    );
+    expect(r.code).toBe(0);
+    expect(readdirSync(join(reports, 'x-1')).sort()).toEqual(['report.md', 'summary.json']);
+    expect(readdirSync(out)).toContain('dscr-01.none.1.json');
+    expect(r.out).toContain(`published report.md and summary.json to ${join(reports, 'x-1')}`);
   });
 
   test('aborts when actual spend crosses the cap, keeping what it wrote', async () => {

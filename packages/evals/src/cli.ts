@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
@@ -23,11 +23,14 @@ import { costUsd, DEFAULT_JUDGE_MODEL, DEFAULT_MODEL, PRICING_DATE, pricing } fr
 import { type GradedRun, renderReport, type Summary, writeResults } from './report.js';
 import { type HarnessName, harnessNames, type Transcript } from './transcript.js';
 
-const pkgDir = fileURLToPath(new URL('..', import.meta.url));
+const repoRoot = fileURLToPath(new URL('../../..', import.meta.url));
 export const paths = {
-  cases: resolve(pkgDir, 'cases'),
-  results: resolve(pkgDir, 'results'),
-  systemPrompt: resolve(pkgDir, '../../docs/agent/system-prompt.md'),
+  cases: resolve(repoRoot, 'packages/evals/cases'),
+  /** Transcripts, summary, and report per run. Gitignored. */
+  results: resolve(repoRoot, 'packages/evals/results'),
+  /** Committed reports, copied here by --publish. */
+  reports: resolve(repoRoot, 'packages/evals/reports'),
+  systemPrompt: resolve(repoRoot, 'docs/agent/system-prompt.md'),
 };
 
 const pending: Partial<Record<HarnessName, string>> = { 'agent-ts': 'M4', 'agent-py': 'M5' };
@@ -124,6 +127,7 @@ type Deps = {
   client?: MessagesClient;
   log?: (line: string) => void;
   casesDir?: string;
+  reportsDir?: string;
   now?: () => Date;
 };
 
@@ -153,6 +157,7 @@ export async function main(
         'dry-run': { type: 'boolean', default: false },
         out: { type: 'string' },
         'no-judge': { type: 'boolean', default: false },
+        publish: { type: 'string' },
       },
     }).values;
   } catch (e) {
@@ -164,6 +169,8 @@ export async function main(
     : ((opts.harness ?? ['none,direct']).flatMap((h) => h.split(',')) as HarnessName[]);
   const unknown = selected.filter((h) => !harnessNames.includes(h));
   if (unknown.length) return fail(`unknown harness ${unknown.join(', ')}`);
+  if (opts.publish !== undefined && !/^[\w-][\w.-]*$/.test(opts.publish))
+    return fail(`--publish name must be letters, digits, dots, dashes, or underscores`);
   const runs = Number(opts.runs);
   if (!Number.isInteger(runs) || runs < 1) return fail(`--runs must be a positive integer`);
 
@@ -311,6 +318,13 @@ export async function main(
   log(
     `wrote ${transcripts.length} transcripts, summary.json, and report.md to ${outDir}; ${summary.passed}/${graded.length} passed; spent $${(totals.costUsd + judgeTotals.costUsd).toFixed(4)}`,
   );
+  if (opts.publish) {
+    // Transcripts stay in the gitignored results dir; only the report and summary are committed.
+    const dest = resolve(deps.reportsDir ?? paths.reports, opts.publish);
+    mkdirSync(dest, { recursive: true });
+    for (const f of ['report.md', 'summary.json']) cpSync(resolve(outDir, f), resolve(dest, f));
+    log(`published report.md and summary.json to ${dest}`);
+  }
   return stopped ? fail(`stopped early: ${stopped}`) : 0;
 }
 

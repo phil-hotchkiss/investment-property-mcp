@@ -20,7 +20,8 @@ pnpm evals                          # none and direct, 3 runs each
 | `--runs N`            | 3                                        | Runs per case per harness.                                                                |
 | `--cases <id or glob>` | all                                     | Matches case ids. `*` is the only wildcard, for example `--cases 'unit-traps-*'`.         |
 | `--dry-run`           | off                                      | Print the plan and estimate, exit 0. Needs no API key.                                    |
-| `--out <dir>`         | `packages/evals/results/<timestamp>/`    | Relative paths resolve from the directory you ran `pnpm` in.                              |
+| `--out <dir>`         | `packages/evals/results/<timestamp>/`    | The default resolves from the repo root wherever you run `pnpm`. A relative `--out` resolves from the directory you ran `pnpm` in. |
+| `--publish <name>`    | off                                      | After the run, copy `report.md` and `summary.json` (not transcripts) to `packages/evals/reports/<name>/`. |
 | `--no-judge`          | off                                      | Skip judge calls. `mentions` is `na` unless the case sets `must_not_mention`.             |
 
 ## Environment
@@ -42,7 +43,7 @@ The estimate assumes 4 characters per token, one call for `none`, and three call
 
 ## Output
 
-`<out>/<caseId>.<harness>.<run>.json` per transcript, plus `summary.json` and `report.md`. `summary.json` has agent and judge totals (`usage`, `judge`), both estimates, `pricingDate`, `passed`, `stopped` (null, or why the run ended early), and `graded`, one entry per transcript with its grade. A run that stops early still grades and reports everything it finished.
+`<out>/<caseId>.<harness>.<run>.json` per transcript, plus `summary.json` and `report.md`. Transcripts stay in `packages/evals/results/`, which is gitignored, so they survive for regrading but are not committed. To keep a run's results in the repo, pass `--publish <name>`: it copies `report.md` and `summary.json` only to `packages/evals/reports/<name>/`, for example `pnpm evals --publish 2026-11-01-haiku`. `summary.json` has agent and judge totals (`usage`, `judge`), both estimates, `pricingDate`, `passed`, `stopped` (null, or why the run ended early), and `graded`, one entry per transcript with its grade. A run that stops early still grades and reports everything it finished.
 
 Every harness emits the same transcript, validated by `transcriptSchema` in `src/transcript.ts`. Agents in other languages validate against `packages/evals/transcript.schema.json`, which a test keeps in sync with the zod schema (`pnpm --filter @rental-deal-math/evals schema` regenerates it after a build).
 
@@ -112,7 +113,7 @@ Merge concatenates the graded runs from each `summary.json` and prints one repor
 
 ## CI
 
-`.github/workflows/evals.yml` runs only by manual dispatch: Actions, Evals, Run workflow. Inputs are `harnesses` (default `none,direct`), `model` (default `claude-haiku-4-5`), `runs` (default 3), and `cases` (default `*`). It needs the `ANTHROPIC_API_KEY` repository secret. The cap comes from the `EVAL_MAX_USD` repository variable, 5 when unset. The results dir, report included, uploads as the `eval-results` artifact even when the run stops early.
+`.github/workflows/evals.yml` runs only by manual dispatch: Actions, Evals, Run workflow. Inputs are `harnesses` (default `none,direct`), `model` (default `claude-haiku-4-5`), `runs` (default 3), and `cases` (default `*`). It needs the `ANTHROPIC_API_KEY` repository secret. The cap comes from the `EVAL_MAX_USD` repository variable, 5 when unset. It writes to the default results dir, and `packages/evals/results/`, transcripts and report included, uploads as the `eval-results` artifact even when the run stops early.
 
 ## Cost control
 

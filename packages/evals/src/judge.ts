@@ -31,7 +31,22 @@ export const rubricFor = (c: Case) =>
   `The answer must mention each of: ${c.expected.must_mention.join('; ')}. Mentioning means the concept is present in substance, not necessarily the exact words.`;
 
 export const JUDGE_SYSTEM =
-  'You grade one answer from a real estate deal-math assistant against a rubric. Judge only what the rubric asks. Do not grade arithmetic unless the rubric asks for it. Reply with JSON: pass is true only if every rubric item is met; missing lists the rubric items not met; reason is one sentence.';
+  'You grade one answer from a real estate deal-math assistant against a rubric. Judge only what the rubric asks. Do not grade arithmetic unless the rubric asks for it. The <tool_calls> block lists the tool calls the agent actually made, in order, with each result truncated; judge any rubric item about tool usage from that list, not from what the answer claims. Reply with JSON: pass is true only if every rubric item is met; missing lists the rubric items not met; reason is one sentence.';
+
+/** Characters of each tool result shown to the judge. */
+const RESULT_CHARS = 400;
+
+/** The tool calls as the judge sees them: one line each, name, args JSON, error flag, result head. */
+export function toolCallsFor(t: Transcript): string {
+  if (t.harness === 'none') return 'The agent had no tools.';
+  if (!t.toolCalls.length) return 'The agent made no tool calls.';
+  return t.toolCalls
+    .map(
+      (tc, i) =>
+        `${i + 1}. ${tc.name} ${JSON.stringify(tc.args)} ${tc.result.isError ? 'error' : 'ok'}: ${tc.result.text.slice(0, RESULT_CHARS)}`,
+    )
+    .join('\n');
+}
 
 /**
  * One Messages API call. Structured outputs (output_config.format) constrain the reply to the
@@ -53,7 +68,7 @@ export async function judge(input: {
     messages: [
       {
         role: 'user',
-        content: `<rubric>\n${rubricFor(c)}\n</rubric>\n<question>\n${c.prompt}\n</question>\n<answer>\n${t.finalText}\n</answer>`,
+        content: `<rubric>\n${rubricFor(c)}\n</rubric>\n<question>\n${c.prompt}\n</question>\n<tool_calls>\n${toolCallsFor(t)}\n</tool_calls>\n<answer>\n${t.finalText}\n</answer>`,
       },
     ],
   });

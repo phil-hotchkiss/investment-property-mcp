@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { resolveCase } from './cases.js';
-import { judge, needsJudge, rubricFor } from './judge.js';
+import { judge, needsJudge, rubricFor, toolCallsFor } from './judge.js';
 import { fakeClient, text } from './test/fake.js';
 import type { Transcript } from './transcript.js';
 
@@ -24,11 +24,11 @@ const transcript = {
   durationMs: 0,
 } satisfies Transcript;
 
-const run = async (reply: string) => {
+const run = async (reply: string, t: Transcript = transcript) => {
   const { client, requests } = fakeClient([
     { content: [text(reply)], stop_reason: 'end_turn', usage: [1000, 100] },
   ]);
-  const r = await judge({ case: c, transcript, model: 'claude-sonnet-5-5', client });
+  const r = await judge({ case: c, transcript: t, model: 'claude-sonnet-5-5', client });
   return { r, request: requests[0]! };
 };
 
@@ -45,6 +45,37 @@ describe('judge', () => {
     expect(request.output_config?.format?.type).toBe('json_schema');
     expect(request.messages[0]!.content).toContain('The answer must mention each of: DSCR method');
     expect(request.messages[0]!.content).toContain(transcript.finalText);
+  });
+
+  test('the request lists the tool calls the agent made', async () => {
+    const t: Transcript = {
+      ...transcript,
+      toolCalls: [
+        {
+          name: 'dscr',
+          args: { interestRatePct: 0.0725 },
+          result: { isError: true, text: 'interestRatePct looks like a decimal' },
+        },
+        {
+          name: 'dscr',
+          args: { interestRatePct: 7.25 },
+          result: { isError: false, text: 'x'.repeat(1000) },
+        },
+      ],
+    };
+    const { request } = await run('{"pass":true,"missing":[],"reason":"r"}', t);
+    const content = request.messages[0]!.content as string;
+    expect(content).toContain(
+      '<tool_calls>\n1. dscr {"interestRatePct":0.0725} error: interestRatePct looks like a decimal\n2. dscr {"interestRatePct":7.25} ok: ' +
+        'x'.repeat(400) +
+        '\n</tool_calls>',
+    );
+    expect(request.system).toMatch(/tool calls the agent actually made/);
+  });
+
+  test('tool call list for no calls and for the none harness', () => {
+    expect(toolCallsFor(transcript)).toBe('The agent made no tool calls.');
+    expect(toolCallsFor({ ...transcript, harness: 'none' })).toBe('The agent had no tools.');
   });
 
   test('fail JSON', async () => {

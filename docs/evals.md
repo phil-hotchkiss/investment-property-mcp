@@ -91,7 +91,7 @@ The answer check reads every number in the final text. It strips `$` and thousan
 
 ### Judge
 
-`src/judge.ts` makes one Messages API call per transcript when the case has `must_mention` or `rubric`, on `EVAL_JUDGE_MODEL`. The prompt is the case's `rubric`, or else: "The answer must mention each of: <must_mention>. Mentioning means the concept is present in substance, not necessarily the exact words." Structured outputs constrain the reply to `{ pass, missing, reason }`; a reply that still does not parse grades as a fail with reason "judge returned non-JSON". Judge usage and cost are recorded separately in `summary.json` under `judge`. `--no-judge` skips every judge call.
+`src/judge.ts` makes one Messages API call per transcript when the case has `must_mention` or `rubric`, on `EVAL_JUDGE_MODEL`. The prompt is the case's `rubric`, or else: "The answer must mention each of: <must_mention>. Mentioning means the concept is present in substance, not necessarily the exact words." Besides the case prompt and the final text, the judge gets the tool calls the agent actually made, one line each: name, args JSON, `ok` or `error`, and the first 400 characters of the result text. The judge prompt says to grade rubric items about tool usage from that list. For the `none` harness the list says the agent had no tools. Structured outputs constrain the reply to `{ pass, missing, reason }`; a reply that still does not parse grades as a fail with reason "judge returned non-JSON". Judge usage and cost are recorded separately in `summary.json` under `judge`. `--no-judge` skips every judge call.
 
 ## Report
 

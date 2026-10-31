@@ -91,6 +91,7 @@ describe('main', () => {
     [[], {}, 'ANTHROPIC_API_KEY is not set. See docs/secrets.md.'],
     [[], { ANTHROPIC_API_KEY: 'k', EVAL_MAX_USD: '0.0001' }, 'exceeds EVAL_MAX_USD'],
     [['--harness', 'agent-ts'], { ANTHROPIC_API_KEY: 'k' }, 'agent-ts is not implemented until M4'],
+    [['--publish', '../x'], {}, '--publish name must be'],
   ])('%j %j fails: %s', async (argv, env, message) => {
     const { code, out } = await cli(argv, env);
     expect(code).toBe(1);
@@ -142,7 +143,7 @@ describe('main', () => {
     const { client, requests } = fakeClient(answer(1));
     const r = await cli(
       ['--harness', 'none', '--runs', '1', '--cases', 'dscr-01'],
-      {},
+      { INIT_CWD: tmpdir() },
       {
         client,
         now: () => new Date('2000-01-01T00:00:00.000Z'),
@@ -153,6 +154,27 @@ describe('main', () => {
     expect(r.out).toContain(dir);
     rmSync(dir, { recursive: true });
     expect(requests[0]?.system).toMatch(/ask which one they want/);
+  });
+
+  test('default results dir is under the repo, not INIT_CWD', () => {
+    expect(paths.results).toBe(join(paths.cases, '..', 'results'));
+    expect(paths.results.endsWith(join('packages', 'evals', 'results'))).toBe(true);
+    expect(paths.reports.endsWith(join('packages', 'evals', 'reports'))).toBe(true);
+  });
+
+  test('--publish copies only report.md and summary.json to reports/<name>', async () => {
+    const out = mkdtempSync(join(tmpdir(), 'evals-out-'));
+    const reports = mkdtempSync(join(tmpdir(), 'evals-reports-'));
+    const { client } = fakeClient(answer(1));
+    const r = await cli(
+      ['--harness', 'none', '--runs', '1', '--cases', 'dscr-01', '--out', out, '--publish', 'x-1'],
+      { INIT_CWD: '/somewhere/else' },
+      { client, reportsDir: reports },
+    );
+    expect(r.code).toBe(0);
+    expect(readdirSync(join(reports, 'x-1')).sort()).toEqual(['report.md', 'summary.json']);
+    expect(readdirSync(out)).toContain('dscr-01.none.1.json');
+    expect(r.out).toContain(`published report.md and summary.json to ${join(reports, 'x-1')}`);
   });
 
   test('aborts when actual spend crosses the cap, keeping what it wrote', async () => {
@@ -281,6 +303,47 @@ describe('main', () => {
       expect(requests).toHaveLength(3);
       const summary = JSON.parse(readFileSync(join(out, 'summary.json'), 'utf8'));
       expect(summary.graded[1].grade.details).toContain('mentions: judge skipped');
+    });
+
+    test('an out-of-scope case is judged only for its response type', async () => {
+      const d = casesDir(['oos-01']);
+      writeFileSync(
+        join(d, 'oos-01.yaml'),
+        'id: oos-01\ncategory: out-of-scope\nprompt: p\nexpected: {}\n',
+      );
+      const decline = (n: number) =>
+        Array.from({ length: n }, () => ({
+          content: [text('I only do deal math. Could you ask a CPA?')],
+          stop_reason: 'end_turn' as const,
+        }));
+      const declined = {
+        content: [
+          text(JSON.stringify({ pass: true, missing: [], reason: 'r', responseType: 'declined' })),
+        ],
+        stop_reason: 'end_turn' as const,
+      };
+      const out = mkdtempSync(join(tmpdir(), 'evals-out-'));
+      const { client, requests } = fakeClient([...decline(1), declined]);
+      await cli(['--harness', 'none', '--runs', '1', '--out', out], {}, { client, casesDir: d });
+      expect(requests[1]!.messages[0]!.content).toMatch(/No rubric/);
+      const g = JSON.parse(readFileSync(join(out, 'summary.json'), 'utf8')).graded[0].grade;
+      expect(g).toMatchObject({ overall: true, mentions: 'na' });
+      expect(g.details).toEqual(['response: declined (judge)']);
+
+      // --no-judge falls back to the heuristic, which reads the decline as a question.
+      const out2 = mkdtempSync(join(tmpdir(), 'evals-out-'));
+      const r = fakeClient(decline(1));
+      await cli(
+        ['--harness', 'none', '--runs', '1', '--no-judge', '--out', out2],
+        {},
+        {
+          client: r.client,
+          casesDir: d,
+        },
+      );
+      const g2 = JSON.parse(readFileSync(join(out2, 'summary.json'), 'utf8')).graded[0].grade;
+      expect(g2.overall).toBe(false);
+      expect(g2.details).toContain('response: asked_for_info (heuristic)');
     });
 
     test('a judge error stops judging and is reported', async () => {

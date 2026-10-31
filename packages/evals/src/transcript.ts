@@ -43,8 +43,9 @@ const asksForInfo =
 /**
  * True when the model asked instead of answering: no tool calls, and the final text ends with a
  * question mark or contains a request for information.
- * ponytail: phrase heuristic, so a question buried in a computed answer is missed. Nothing
- * overrules it: the grader reads it as-is, and the judge only grades mentions and the rubric.
+ * ponytail: phrase heuristic, so a question buried in a computed answer is missed, and a polite
+ * decline that says "could you" reads as a question. The grader prefers the judge's responseType
+ * and reads this only when the judge did not run (--no-judge, or a skipped call).
  */
 export function askedQuestion(toolCallCount: number, finalText: string): boolean {
   if (toolCallCount > 0) return false;

@@ -35,10 +35,10 @@ jobs:
           HARNESSES: ${{ inputs.harnesses }}
           RUNS: ${{ inputs.runs }}
           CASES: ${{ inputs.cases }}
-        run: pnpm evals --harness "$HARNESSES" --runs "$RUNS" --cases "$CASES" --out results
+        run: pnpm evals --harness "$HARNESSES" --runs "$RUNS" --cases "$CASES"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: eval-results
-          path: results
+          path: packages/evals/results
           if-no-files-found: ignore

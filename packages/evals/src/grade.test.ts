@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { resolveCase } from './cases.js';
-import { extractNumbers, grade, within } from './grade.js';
+import { answerFound, extractNumbers, grade, within } from './grade.js';
 import { dscrArgs } from './test/fake.js';
 import type { Transcript } from './transcript.js';
 
@@ -37,7 +37,38 @@ describe('extractNumbers', () => {
     ['vacancy 6-8%', [6, 8]],
     ['5km and 3 kids', [5, 3]],
     ['no numbers', []],
+    ['cash flow \u2212$473 a month', [-473]],
+    ['cash flow \u2013473', [-473]],
+    ['cash flow \u2014$1,234.50', [-1234.5]],
+    ['cash flow (1,234) a year', [-1234]],
+    ['cash flow ($473) a month', [-473]],
+    ['(30 years)', [30]],
+    ['(5%)', [5]],
   ])('%s', (text, numbers) => expect(extractNumbers(text)).toEqual(numbers));
+});
+
+describe('answerFound', () => {
+  test.each([
+    'You would lose $473 a month.',
+    'a monthly loss of $473',
+    'cash flow is negative: $473 per month',
+    'a $473 shortfall every month',
+    'You come up $473 short each month',
+    'a deficit of 473 a month',
+  ])('unsigned figure near a loss word matches a negative: %s', (text) =>
+    expect(answerFound(text, -473.49, { tolerance: 5 })).toBe(true),
+  );
+
+  test('unsigned figure with no loss word nearby does not match a negative', () => {
+    expect(answerFound('Cash flow is $473 a month.', -473.49, { tolerance: 5 })).toBe(false);
+    const far = 'You lose money overall.' + ' '.repeat(50) + 'Cash flow $473.';
+    expect(answerFound(far, -473.49, { tolerance: 5 })).toBe(false);
+  });
+
+  test('a loss word does not make a positive expectation accept a negative', () => {
+    expect(answerFound('loss of $473', 473, { tolerance: 5 })).toBe(true);
+    expect(answerFound('-$473 loss', 473, { tolerance: 5 })).toBe(false);
+  });
 });
 
 describe('within', () => {
@@ -129,12 +160,34 @@ describe('args', () => {
     ]);
   });
 
-  test('uses the first call to the tool; no call fails', () => {
-    const first = { ...dscrArgs, method: 'noi' };
-    expect(grade(c, tr({ toolCalls: [call('dscr', first), call('dscr', dscrArgs)] })).args).toBe(
-      'fail',
-    );
+  test('any matching call passes and is recorded; no call fails', () => {
+    const wrong = { ...dscrArgs, method: 'noi' };
+    const g = grade(c, tr({ toolCalls: [call('dscr', wrong), call('dscr', dscrArgs)] }));
+    expect(g.args).toBe('pass');
+    expect(g.details).toContain('args: dscr matched call 2 of 2');
     expect(grade(c, tr()).details).toContain('args: dscr.method no call to dscr');
+  });
+
+  test('fields must match on the same call; failures describe the first call', () => {
+    const rateOnly = { ...dscrArgs, method: 'noi' };
+    const methodOnly = { ...dscrArgs, loan: { termYears: 30 } };
+    const g = grade(c, tr({ toolCalls: [call('dscr', rateOnly), call('dscr', methodOnly)] }));
+    expect(g.args).toBe('fail');
+    expect(g.details).toEqual(['args: dscr.method got "noi", expected "rentToPitia"']);
+  });
+
+  test('sequence order is still checked when args match a later call', () => {
+    const seq = mk({
+      tools: { sequence: ['max_offer', 'dscr'] },
+      args: { 'dscr.method': { value: 'rentToPitia' } },
+    });
+    const g = grade(
+      seq,
+      tr({
+        toolCalls: [call('dscr', { method: 'noi' }), call('max_offer'), call('dscr', dscrArgs)],
+      }),
+    );
+    expect(g).toMatchObject({ toolSelection: 'fail', args: 'pass' });
   });
 
   test('na when no args expected', () => {
@@ -153,7 +206,10 @@ describe('answer', () => {
   test('fails when no number matches', () => {
     const g = grade(c, tr({ finalText: 'Offer up to $350,000.' }));
     expect(g.answer).toBe('fail');
-    expect(g.details).toEqual(['answer: maxPrice expected 392859, not found in final text']);
+    expect(g.details).toEqual([
+      'answer: maxPrice expected 392859, not found in final text',
+      'response: answered (heuristic)',
+    ]);
   });
 
   test('asking instead of answering fails answer, even with no answer expected', () => {
@@ -198,7 +254,10 @@ describe('accept_question', () => {
       mentions: 'na',
       question: 'pass',
       overall: true,
-      details: ['question: asked, which accept_question allows'],
+      details: [
+        'question: asked, which accept_question allows',
+        'response: asked_for_info (heuristic)',
+      ],
       asked: true,
     });
   });
@@ -222,6 +281,46 @@ describe('accept_question', () => {
   });
 });
 
+describe('response type from the judge', () => {
+  const v = (responseType: 'answered' | 'asked_for_info' | 'declined', pass = true) => ({
+    pass,
+    missing: [],
+    reason: 'r',
+    responseType,
+  });
+
+  test('asked_for_info satisfies expect_question over the heuristic', () => {
+    const g = grade(mk({ expect_question: true }), tr(), v('asked_for_info'));
+    expect(g).toMatchObject({ question: 'pass', overall: true });
+    expect(g.details).toContain('response: asked_for_info (judge)');
+  });
+
+  test('answered fails expect_question even when the heuristic saw a question', () => {
+    const g = grade(mk({ expect_question: true }), tr({ askedQuestion: true }), v('answered'));
+    expect(g).toMatchObject({ question: 'fail', overall: false });
+    expect(g.details).toContain('question: did not ask');
+  });
+
+  test('asked_for_info satisfies accept_question', () => {
+    const c = mk({ tools: ['dscr'], answer: { dscr: { value: 1.3 } }, accept_question: true });
+    const g = grade(c, tr(), v('asked_for_info'));
+    expect(g).toMatchObject({ question: 'pass', overall: true, asked: true });
+    expect(g.details).toContain('response: asked_for_info (judge)');
+  });
+
+  test('declined passes an out-of-scope case the heuristic would fail', () => {
+    const t = tr({ askedQuestion: true, finalText: 'I only do deal math. Could you ask a CPA?' });
+    expect(grade(mk({}), t).overall).toBe(false);
+    const g = grade(mk({}), t, v('declined'));
+    expect(g).toMatchObject({ toolSelection: 'pass', answer: 'na', mentions: 'na', overall: true });
+    expect(g.details).toEqual(['response: declined (judge)']);
+  });
+
+  test('a classify-only verdict does not grade mentions', () => {
+    expect(grade(mk({}), tr(), v('answered', false)).mentions).toBe('na');
+  });
+});
+
 describe('mentions', () => {
   const c = mk({ must_not_mention: ['Average DSCR'], must_mention: ['DSCR method'] });
 
@@ -242,7 +341,7 @@ describe('mentions', () => {
     const g = grade(c, tr(), bad);
     expect(g.mentions).toBe('fail');
     expect(g.details).toContain('mentions: judge failed (missing: DSCR method): no method stated');
-    expect(grade(mk({}), tr(), { ...bad, missing: [] }).details).toContain(
+    expect(grade(mk({ rubric: 'r' }), tr(), { ...bad, missing: [] }).details).toContain(
       'mentions: judge failed: no method stated',
     );
   });

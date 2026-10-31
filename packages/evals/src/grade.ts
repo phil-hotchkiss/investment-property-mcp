@@ -1,5 +1,6 @@
 import { isDeepStrictEqual } from 'node:util';
 import type { Case } from './cases.js';
+import { needsClassify, needsJudge, type ResponseType } from './judge.js';
 import type { Transcript } from './transcript.js';
 
 export type Verdict = 'pass' | 'fail' | 'na';
@@ -12,8 +13,16 @@ export type Grade = Record<Dimension, Verdict> & {
   asked?: true;
 };
 
-/** What the LLM judge decided about must_mention or the rubric. See judge.ts. */
-export type JudgeVerdict = { pass: boolean; missing: string[]; reason: string };
+/**
+ * What the LLM judge decided about must_mention or the rubric, and how the model responded. See
+ * judge.ts. responseType is absent when the judge reply did not parse.
+ */
+export type JudgeVerdict = {
+  pass: boolean;
+  missing: string[];
+  reason: string;
+  responseType?: ResponseType | undefined;
+};
 
 type Tolerance = { tolerance?: number | undefined; tolerance_pct?: number | undefined };
 
@@ -85,8 +94,13 @@ export function grade(c: Case, t: Transcript, judge?: JudgeVerdict): Grade {
   const called = t.toolCalls.map((tc) => tc.name);
   const firstCalls = [...new Set(called)];
   const canCallTools = t.harness !== 'none';
+  // The judge's responseType when it ran; the transcript's heuristic otherwise (--no-judge).
+  const asked = judge?.responseType ? judge.responseType === 'asked_for_info' : t.askedQuestion;
+  const source = judge?.responseType
+    ? `response: ${judge.responseType} (judge)`
+    : `response: ${t.askedQuestion ? 'asked_for_info' : 'answered'} (heuristic)`;
 
-  if (e.accept_question && t.askedQuestion && called.length === 0)
+  if (e.accept_question && asked && called.length === 0)
     return {
       toolSelection: 'na',
       args: 'na',
@@ -94,7 +108,7 @@ export function grade(c: Case, t: Transcript, judge?: JudgeVerdict): Grade {
       mentions: 'na',
       question: 'pass',
       overall: true,
-      details: ['question: asked, which accept_question allows'],
+      details: ['question: asked, which accept_question allows', source],
       asked: true,
     };
 
@@ -161,7 +175,8 @@ export function grade(c: Case, t: Transcript, judge?: JudgeVerdict): Grade {
       }
     }
   }
-  if (!e.expect_question && t.askedQuestion) {
+  if (needsClassify(c) || asked) details.push(source);
+  if (!e.expect_question && asked) {
     details.push('answer: asked instead of answering');
     answer = 'fail';
   }
@@ -169,7 +184,7 @@ export function grade(c: Case, t: Transcript, judge?: JudgeVerdict): Grade {
   // Question
   let question: Verdict = 'na';
   if (e.expect_question) {
-    question = t.askedQuestion && called.length === 0 ? 'pass' : 'fail';
+    question = asked && called.length === 0 ? 'pass' : 'fail';
     if (question === 'fail')
       details.push(
         called.length
@@ -179,16 +194,19 @@ export function grade(c: Case, t: Transcript, judge?: JudgeVerdict): Grade {
   }
 
   // Mentions: deterministic must_not_mention, then the judge.
-  let mentions: Verdict = e.must_not_mention.length || judge ? 'pass' : 'na';
+  // A judge call made only to classify the response says nothing about mentions.
+  const rubricVerdict = judge && needsJudge(c) ? judge : undefined;
+  let mentions: Verdict = e.must_not_mention.length || rubricVerdict ? 'pass' : 'na';
   const lower = t.finalText.toLowerCase();
   for (const banned of e.must_not_mention)
     if (lower.includes(banned.toLowerCase())) {
       details.push(`mentions: must not mention "${banned}"`);
       mentions = 'fail';
     }
-  if (judge && !judge.pass) {
-    const missing = judge.missing.length ? ` (missing: ${judge.missing.join(', ')})` : '';
-    details.push(`mentions: judge failed${missing}: ${judge.reason}`);
+  if (rubricVerdict && !rubricVerdict.pass) {
+    const { missing: m, reason } = rubricVerdict;
+    const missing = m.length ? ` (missing: ${m.join(', ')})` : '';
+    details.push(`mentions: judge failed${missing}: ${reason}`);
     mentions = 'fail';
   }
 

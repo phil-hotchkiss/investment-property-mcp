@@ -184,7 +184,10 @@ describe('answer', () => {
   test('fails when no number matches', () => {
     const g = grade(c, tr({ finalText: 'Offer up to $350,000.' }));
     expect(g.answer).toBe('fail');
-    expect(g.details).toEqual(['answer: maxPrice expected 392859, not found in final text']);
+    expect(g.details).toEqual([
+      'answer: maxPrice expected 392859, not found in final text',
+      'response: answered (heuristic)',
+    ]);
   });
 
   test('asking instead of answering fails answer, even with no answer expected', () => {
@@ -229,7 +232,10 @@ describe('accept_question', () => {
       mentions: 'na',
       question: 'pass',
       overall: true,
-      details: ['question: asked, which accept_question allows'],
+      details: [
+        'question: asked, which accept_question allows',
+        'response: asked_for_info (heuristic)',
+      ],
       asked: true,
     });
   });
@@ -253,6 +259,46 @@ describe('accept_question', () => {
   });
 });
 
+describe('response type from the judge', () => {
+  const v = (responseType: 'answered' | 'asked_for_info' | 'declined', pass = true) => ({
+    pass,
+    missing: [],
+    reason: 'r',
+    responseType,
+  });
+
+  test('asked_for_info satisfies expect_question over the heuristic', () => {
+    const g = grade(mk({ expect_question: true }), tr(), v('asked_for_info'));
+    expect(g).toMatchObject({ question: 'pass', overall: true });
+    expect(g.details).toContain('response: asked_for_info (judge)');
+  });
+
+  test('answered fails expect_question even when the heuristic saw a question', () => {
+    const g = grade(mk({ expect_question: true }), tr({ askedQuestion: true }), v('answered'));
+    expect(g).toMatchObject({ question: 'fail', overall: false });
+    expect(g.details).toContain('question: did not ask');
+  });
+
+  test('asked_for_info satisfies accept_question', () => {
+    const c = mk({ tools: ['dscr'], answer: { dscr: { value: 1.3 } }, accept_question: true });
+    const g = grade(c, tr(), v('asked_for_info'));
+    expect(g).toMatchObject({ question: 'pass', overall: true, asked: true });
+    expect(g.details).toContain('response: asked_for_info (judge)');
+  });
+
+  test('declined passes an out-of-scope case the heuristic would fail', () => {
+    const t = tr({ askedQuestion: true, finalText: 'I only do deal math. Could you ask a CPA?' });
+    expect(grade(mk({}), t).overall).toBe(false);
+    const g = grade(mk({}), t, v('declined'));
+    expect(g).toMatchObject({ toolSelection: 'pass', answer: 'na', mentions: 'na', overall: true });
+    expect(g.details).toEqual(['response: declined (judge)']);
+  });
+
+  test('a classify-only verdict does not grade mentions', () => {
+    expect(grade(mk({}), tr(), v('answered', false)).mentions).toBe('na');
+  });
+});
+
 describe('mentions', () => {
   const c = mk({ must_not_mention: ['Average DSCR'], must_mention: ['DSCR method'] });
 
@@ -273,7 +319,7 @@ describe('mentions', () => {
     const g = grade(c, tr(), bad);
     expect(g.mentions).toBe('fail');
     expect(g.details).toContain('mentions: judge failed (missing: DSCR method): no method stated');
-    expect(grade(mk({}), tr(), { ...bad, missing: [] }).details).toContain(
+    expect(grade(mk({ rubric: 'r' }), tr(), { ...bad, missing: [] }).details).toContain(
       'mentions: judge failed: no method stated',
     );
   });

@@ -11,7 +11,14 @@ import { grade } from './grade.js';
 import type { Harness, MessagesClient } from './harness/common.js';
 import { direct } from './harness/direct.js';
 import { none } from './harness/none.js';
-import { JUDGE_SYSTEM, judge, type JudgeResult, needsJudge, rubricFor } from './judge.js';
+import {
+  callsJudge,
+  JUDGE_SYSTEM,
+  judge,
+  type JudgeResult,
+  needsJudge,
+  rubricFor,
+} from './judge.js';
 import { costUsd, DEFAULT_JUDGE_MODEL, DEFAULT_MODEL, PRICING_DATE, pricing } from './pricing.js';
 import { type GradedRun, renderReport, type Summary, writeResults } from './report.js';
 import { type HarnessName, harnessNames, type Transcript } from './transcript.js';
@@ -75,7 +82,8 @@ export function estimate(
 }
 
 /**
- * Judge calls: one per transcript whose case needs the judge. Input is the rubric, prompt, and an
+ * Judge calls: one per transcript whose case needs the judge for a rubric or to classify the
+ * response. Input is the rubric, prompt, and an
  * answer of OUTPUT_PER_CALL tokens; output is OUTPUT_PER_CALL.
  */
 export function estimateJudge(
@@ -84,7 +92,7 @@ export function estimateJudge(
   runs: number,
   model: string,
 ): Estimate {
-  const judged = cases.filter(needsJudge);
+  const judged = cases.filter(callsJudge);
   const calls = judged.length * selected.length * runs;
   const inputTokens = judged.reduce(
     (n, c) =>
@@ -254,9 +262,7 @@ export async function main(
   const graded: GradedRun[] = [];
   for (const [c, t] of transcripts) {
     let verdict: JudgeResult | undefined;
-    // An accepted question grades without the judge, so do not pay for one.
-    const asked = grade(c, t).asked;
-    if (useJudge && needsJudge(c) && !stopped && !asked)
+    if (useJudge && callsJudge(c) && !stopped)
       try {
         verdict = await judge({ case: c, transcript: t, model: judgeModel, client });
         judgeTotals.calls++;
@@ -269,7 +275,7 @@ export async function main(
         stopped = `judge: ${(e as Error).message}`;
       }
     const g = grade(c, t, verdict);
-    if (useJudge && needsJudge(c) && !verdict && !asked) g.details.push('mentions: judge skipped');
+    if (useJudge && needsJudge(c) && !verdict) g.details.push('mentions: judge skipped');
     graded.push({
       caseId: c.id,
       category: c.category,

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { resolveCase } from './cases.js';
-import { judge, needsJudge, rubricFor, toolCallsFor } from './judge.js';
+import { callsJudge, judge, needsClassify, needsJudge, rubricFor, toolCallsFor } from './judge.js';
 import { fakeClient, text } from './test/fake.js';
 import type { Transcript } from './transcript.js';
 
@@ -76,6 +76,35 @@ describe('judge', () => {
   test('tool call list for no calls and for the none harness', () => {
     expect(toolCallsFor(transcript)).toBe('The agent made no tool calls.');
     expect(toolCallsFor({ ...transcript, harness: 'none' })).toBe('The agent had no tools.');
+  });
+
+  test('asks for responseType in the same call and returns it', async () => {
+    const { r, request } = await run(
+      '{"pass":true,"missing":[],"reason":"r","responseType":"asked_for_info"}',
+    );
+    expect(r.responseType).toBe('asked_for_info');
+    expect(request.output_config?.format?.schema).toMatchObject({
+      required: expect.arrayContaining(['responseType']),
+    });
+    expect(request.system).toMatch(/asked_for_info if it asks/);
+  });
+
+  test('classify-only cases call the judge with a no-rubric prompt', () => {
+    const base = { id: 'p', category: 'single-tool' as const, prompt: 'p' };
+    const outOfScope = resolveCase({ ...base, expected: {} });
+    expect([needsJudge(outOfScope), needsClassify(outOfScope), callsJudge(outOfScope)]).toEqual([
+      false,
+      true,
+      true,
+    ]);
+    expect(rubricFor(outOfScope)).toMatch(/^No rubric/);
+    for (const flag of [{ expect_question: true }, { accept_question: true }])
+      expect(callsJudge(resolveCase({ ...base, expected: { tools: ['dscr'], ...flag } }))).toBe(
+        true,
+      );
+    const plain = resolveCase({ ...base, expected: { tools: ['dscr'] } });
+    expect(callsJudge(plain)).toBe(false);
+    expect(callsJudge(resolveCase({ ...base, expected: { tools: { sequence: [] } } }))).toBe(false);
   });
 
   test('fail JSON', async () => {

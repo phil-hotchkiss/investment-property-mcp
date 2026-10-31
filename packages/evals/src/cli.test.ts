@@ -283,6 +283,47 @@ describe('main', () => {
       expect(summary.graded[1].grade.details).toContain('mentions: judge skipped');
     });
 
+    test('an out-of-scope case is judged only for its response type', async () => {
+      const d = casesDir(['oos-01']);
+      writeFileSync(
+        join(d, 'oos-01.yaml'),
+        'id: oos-01\ncategory: out-of-scope\nprompt: p\nexpected: {}\n',
+      );
+      const decline = (n: number) =>
+        Array.from({ length: n }, () => ({
+          content: [text('I only do deal math. Could you ask a CPA?')],
+          stop_reason: 'end_turn' as const,
+        }));
+      const declined = {
+        content: [
+          text(JSON.stringify({ pass: true, missing: [], reason: 'r', responseType: 'declined' })),
+        ],
+        stop_reason: 'end_turn' as const,
+      };
+      const out = mkdtempSync(join(tmpdir(), 'evals-out-'));
+      const { client, requests } = fakeClient([...decline(1), declined]);
+      await cli(['--harness', 'none', '--runs', '1', '--out', out], {}, { client, casesDir: d });
+      expect(requests[1]!.messages[0]!.content).toMatch(/No rubric/);
+      const g = JSON.parse(readFileSync(join(out, 'summary.json'), 'utf8')).graded[0].grade;
+      expect(g).toMatchObject({ overall: true, mentions: 'na' });
+      expect(g.details).toEqual(['response: declined (judge)']);
+
+      // --no-judge falls back to the heuristic, which reads the decline as a question.
+      const out2 = mkdtempSync(join(tmpdir(), 'evals-out-'));
+      const r = fakeClient(decline(1));
+      await cli(
+        ['--harness', 'none', '--runs', '1', '--no-judge', '--out', out2],
+        {},
+        {
+          client: r.client,
+          casesDir: d,
+        },
+      );
+      const g2 = JSON.parse(readFileSync(join(out2, 'summary.json'), 'utf8')).graded[0].grade;
+      expect(g2.overall).toBe(false);
+      expect(g2.details).toContain('response: asked_for_info (heuristic)');
+    });
+
     test('a judge error stops judging and is reported', async () => {
       const out = mkdtempSync(join(tmpdir(), 'evals-out-'));
       const { client } = fakeClient(answer(1));

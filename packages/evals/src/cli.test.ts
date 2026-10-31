@@ -88,7 +88,7 @@ describe('main', () => {
     [[], { EVAL_MODEL: 'gpt-x' }, 'EVAL_MODEL=gpt-x has no price'],
     [[], { EVAL_JUDGE_MODEL: 'gpt-x' }, 'EVAL_JUDGE_MODEL=gpt-x has no price'],
     [[], { EVAL_MAX_USD: 'lots' }, 'EVAL_MAX_USD must be a positive number'],
-    [[], {}, 'ANTHROPIC_API_KEY is not set. See docs/secrets.md.'],
+    [[], {}, 'ANTHROPIC_API_KEY is not set. See docs/guides/secrets.md.'],
     [[], { ANTHROPIC_API_KEY: 'k', EVAL_MAX_USD: '0.0001' }, 'exceeds EVAL_MAX_USD'],
     [['--harness', 'agent-ts'], { ANTHROPIC_API_KEY: 'k' }, 'agent-ts is not implemented until M4'],
     [['--publish', '../x'], {}, '--publish name must be'],

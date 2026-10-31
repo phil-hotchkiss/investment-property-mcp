@@ -1,6 +1,6 @@
 # Eval cases
 
-One YAML file per case, validated by `caseSchema` in `../src/cases.ts`. See `docs/PRD.md` (Evals) for the format.
+One YAML file per case, validated by `caseSchema` in `../src/cases.ts`. See `docs/prd.md` (Evals) for the format.
 
 ## Naming
 
@@ -37,7 +37,7 @@ Every block's input is explicit, so a number that depends on another call's outp
 1. Write the file with a one-line comment at the top saying what it tests.
 2. Put the inputs the user stated, normalized to the tool's units, in `compute.input`.
 3. Leave `value` out of every `answer` entry and set a tolerance.
-4. If it came from something a model actually did, add `evidence: docs/observed-failures.md#<heading-anchor>`.
+4. If it came from something a model actually did, add `evidence: evals/observed-failures.md#<heading-anchor>`.
 5. Bump the count in `cases.test.ts`, then run `pnpm build && pnpm evals --dry-run` and `pnpm test`.
 
-Observed behavior that motivated several cases is in [docs/observed-failures.md](../../../docs/observed-failures.md).
+Observed behavior that motivated several cases is in [evals/observed-failures.md](../../../evals/observed-failures.md).

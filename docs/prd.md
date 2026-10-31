@@ -65,10 +65,14 @@ repo/
     web/           React + Vite UI over core
     agent-ts/      LangChain.js chat agent over the MCP server
     agent-py/      LangChain Python chat agent over the MCP server
+  prompts/
+    agent-system.md  shared system prompt, read by the eval runner and both agents
   docs/
-    agent/         shared system prompt, read by both agents
-    decisions/     short ADRs for non-obvious choices
-    PRD.md
+    prd.md         this document
+    decisions/     short ADRs for non-obvious choices, plus the ADR backlog
+    fixtures/      worked arithmetic behind every asserted test number
+    guides/        MCP client setup, secrets
+    history/       milestone records such as the M0 inventory
   evals/
     README.md      how to run and read evals
     observed-failures.md
@@ -165,7 +169,7 @@ Two chat agents, `apps/agent-ts` and `apps/agent-py`, built on LangChain in each
 ### Rules that keep the proof honest
 
 - **Zero math, zero tool definitions.** Agents discover tools at startup from the MCP server over stdio via the official LangChain MCP adapters (`@langchain/mcp-adapters` in TS, `langchain-mcp-adapters` in Python). No tool schema, description, or formula is written in agent code. If the agent needs to know something about a tool, it belongs in the MCP server.
-- **Same system prompt.** Both agents load `docs/agent/system-prompt.md` at runtime. The prompt covers: ask when DSCR method is unknown, never invent missing inputs, state units when echoing numbers, say when a question is out of scope. One file, two consumers.
+- **Same system prompt.** Both agents load `prompts/agent-system.md` at runtime. The prompt covers: ask when DSCR method is unknown, never invent missing inputs, state units when echoing numbers, say when a question is out of scope. One file, two consumers.
 - **Same graph, one deliberate divergence.** The TypeScript agent uses LangGraph's prebuilt ReAct agent (`createReactAgent`) with in-memory conversation state and no customization. The Python agent starts from the same prebuilt graph, then replaces it with a small custom LangGraph `StateGraph` that adds one node: a clarification gate that runs before any `dscr` or `max_offer` tool call, checks whether the user has stated a DSCR method, and if not, interrupts the graph to ask the user rather than letting the model guess or state an assumption. Everything else about the two agents stays identical. The divergence exists to show graph-level control in Python, which is where PostHog's own assistant lives, and it must be the only divergence: same system prompt, same tools, same one-shot JSON transcript shape. The eval harness treats the interrupt as the agent asking a question, which is the correct behavior for the method ambiguity category.
 - **Same eval suite.** Both agents must pass the existing eval cases through the agent harness described below. Parity is a reported number, not a claim.
 - **Model is config.** The model id comes from `AGENT_MODEL`; the provider is selected through LangChain's string-based model init (`anthropic:claude-...`) so switching providers is an env change, not a code change. Anthropic is the default and the only provider tested.
@@ -213,7 +217,7 @@ expected:
   must_mention: ["DSCR method"]
 ```
 
-Cases may carry an optional `evidence` field pointing at an entry in `docs/observed-failures.md`; the eval report lists it next to the case.
+Cases may carry an optional `evidence` field pointing at an entry in `evals/observed-failures.md`; the eval report lists it next to the case.
 
 Expected numeric answers are computed by calling core directly, never typed by hand.
 

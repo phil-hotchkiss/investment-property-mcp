@@ -1,7 +1,7 @@
 # Portfolio trap: three properties against 1.25; the answer must be total over total, not the mean of ratios.
 id: portfolio-trap-three-props-01
 category: portfolio-trap
-evidence: docs/observed-failures.md#2026-10-30-without-the-mcp-server-claude-code-computed-the-portfolio-correctly-by-writing-python
+evidence: evals/observed-failures.md#2026-10-30-without-the-mcp-server-claude-code-computed-the-portfolio-correctly-by-writing-python
 prompt: >-
   I have three rentals, all 25% down at 7.25 for 30 yrs, no HOA. #1 400k, rent 3,200/mo,
   taxes 4,800/yr, ins 1,800/yr. #2 250k, rent 2,900, taxes 3,000, ins 1,200. #3 500k, rent

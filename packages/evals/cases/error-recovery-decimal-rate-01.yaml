@@ -1,7 +1,7 @@
 # Error recovery: a lender quote writes the rate as 0.0725; the final answer must use 7.25 percent.
 id: error-recovery-decimal-rate-01
 category: error-recovery
-evidence: docs/observed-failures.md#2026-10-30-model-pre-normalized-a-decimal-rate-so-the-teaching-error-never-fired
+evidence: evals/observed-failures.md#2026-10-30-model-pre-normalized-a-decimal-rate-so-the-teaching-error-never-fired
 prompt: >-
   pasting from the lender quote: "Note rate: 0.0725 | Term: 30Y fixed | LTV: 80%". house in
   Boise, 435k, rent 2,650, taxes 2,900 a year, insurance 1,300 a year. 5% vacancy 8% mgmt.

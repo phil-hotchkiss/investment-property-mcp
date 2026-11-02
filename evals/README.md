@@ -6,38 +6,38 @@
 
 ```sh
 pnpm install && pnpm build          # the direct harness spawns packages/mcp-server/dist/bin.js
-eval "$(pnpm -s evals:env)"         # loads ANTHROPIC_API_KEY, see docs/secrets.md
+eval "$(pnpm -s evals:env)"         # loads ANTHROPIC_API_KEY, see docs/guides/secrets.md
 pnpm evals --dry-run                # cases, harnesses, runs, estimated tokens and USD; no network
 pnpm evals                          # none and direct, 3 runs each
 ```
 
 ## Flags
 
-| Flag                  | Default                                  | Meaning                                                                                   |
-| --------------------- | ---------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `--harness <name>`    | `none` and `direct`                      | Repeatable, or comma-separated. One of `none`, `direct`, `agent-ts`, `agent-py`.          |
-| `--all`               | off                                      | Every harness. `agent-ts` and `agent-py` refuse to run until M4 and M5; dry run works.    |
-| `--runs N`            | 3                                        | Runs per case per harness.                                                                |
-| `--cases <id or glob>` | all                                     | Matches case ids. `*` is the only wildcard, for example `--cases 'unit-traps-*'`.         |
-| `--dry-run`           | off                                      | Print the plan and estimate, exit 0. Needs no API key.                                    |
-| `--out <dir>`         | `packages/evals/results/<timestamp>/`    | The default resolves from the repo root wherever you run `pnpm`. A relative `--out` resolves from the directory you ran `pnpm` in. |
-| `--publish <name>`    | off                                      | After the run, copy `report.md` and `summary.json` (not transcripts) to `packages/evals/reports/<name>/`. |
-| `--no-judge`          | off                                      | Skip judge calls. `mentions` is `na` unless the case sets `must_not_mention`.             |
+| Flag                   | Default                               | Meaning                                                                                                                            |
+| ---------------------- | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `--harness <name>`     | `none` and `direct`                   | Repeatable, or comma-separated. One of `none`, `direct`, `agent-ts`, `agent-py`.                                                   |
+| `--all`                | off                                   | Every harness. `agent-ts` and `agent-py` refuse to run until M4 and M5; dry run works.                                             |
+| `--runs N`             | 3                                     | Runs per case per harness.                                                                                                         |
+| `--cases <id or glob>` | all                                   | Matches case ids. `*` is the only wildcard, for example `--cases 'unit-traps-*'`.                                                  |
+| `--dry-run`            | off                                   | Print the plan and estimate, exit 0. Needs no API key.                                                                             |
+| `--out <dir>`          | `packages/evals/results/<timestamp>/` | The default resolves from the repo root wherever you run `pnpm`. A relative `--out` resolves from the directory you ran `pnpm` in. |
+| `--publish <name>`     | off                                   | After the run, copy `report.md` and `summary.json` (not transcripts) to `packages/evals/reports/<name>/`.                          |
+| `--no-judge`           | off                                   | Skip judge calls. `mentions` is `na` unless the case sets `must_not_mention`.                                                      |
 
 ## Environment
 
-| Variable            | Default             | Meaning                                                                                           |
-| ------------------- | ------------------- | ------------------------------------------------------------------------------------------------- |
-| `ANTHROPIC_API_KEY` | none                | Required unless `--dry-run`. See `docs/secrets.md`.                                               |
-| `EVAL_MODEL`        | `claude-haiku-4-5`  | Model under test. Must be in `packages/evals/src/pricing.ts`.                                     |
-| `EVAL_JUDGE_MODEL`  | `claude-sonnet-5-5` | Model for the LLM judge.                                                                          |
+| Variable            | Default             | Meaning                                                                                              |
+| ------------------- | ------------------- | ---------------------------------------------------------------------------------------------------- |
+| `ANTHROPIC_API_KEY` | none                | Required unless `--dry-run`. See `docs/guides/secrets.md`.                                           |
+| `EVAL_MODEL`        | `claude-haiku-4-5`  | Model under test. Must be in `packages/evals/src/pricing.ts`.                                        |
+| `EVAL_JUDGE_MODEL`  | `claude-sonnet-5-5` | Model for the LLM judge.                                                                             |
 | `EVAL_MAX_USD`      | unset               | Refuse to start when the estimate (agent plus judge) exceeds it; stop between calls once spend does. |
 
 The estimate assumes 4 characters per token, one call for `none`, and three calls for the tool harnesses, each resending the tool definitions plus 400 output tokens. Real tool loops can run up to 8 calls, so treat it as a planning number. The judge estimate is one call per transcript whose case has `must_mention`, `rubric`, `expect_question`, `accept_question`, or empty `expected.tools`, sending the judge prompt, rubric, case prompt, and a 400-token answer, with 400 output tokens.
 
 ## Harnesses
 
-- `none`: one Messages API call with the system prompt in `docs/agent/system-prompt.md` and the case prompt. No tools.
+- `none`: one Messages API call with the system prompt in `prompts/agent-system.md` and the case prompt. No tools.
 - `direct`: starts the MCP server as a child process over stdio, lists its tools, and runs a plain Anthropic tool-use loop for at most 8 model calls. Tool errors go back to the model as `tool_result` blocks with `is_error: true`.
 - `agent-ts`, `agent-py`: the LangChain agents in one-shot JSON mode, from M4 and M5.
 
@@ -74,13 +74,13 @@ Every harness emits the same transcript, validated by `transcriptSchema` in `src
 
 `src/grade.ts` grades one transcript against its case with no network. Each dimension is `pass`, `fail`, or `na`. `na` means the dimension does not apply and does not count against the run. A run passes overall when no dimension failed.
 
-| Dimension       | Rule                                                                                                                                                                          |
-| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `toolSelection` | A list in `expected.tools` is a set: the tools called must equal it, and an extra tool fails. A name listed once may be called any number of times; a name listed n > 1 times must be called exactly n times (`[dscr, dscr]` means two dscr calls). `{ sequence }` also checks the order of first calls and does not count repeats. An empty list passes only when no tool was called. |
+| Dimension       | Rule                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `toolSelection` | A list in `expected.tools` is a set: the tools called must equal it, and an extra tool fails. A name listed once may be called any number of times; a name listed n > 1 times must be called exactly n times (`[dscr, dscr]` means two dscr calls). `{ sequence }` also checks the order of first calls and does not count repeats. An empty list passes only when no tool was called.                                                                                          |
 | `args`          | Per tool, passes when any one call to it matches every expected `tool.field` for that tool, so a corrected retry after a tool error counts; with several calls the details record which one matched (`args: dscr matched call 2 of 2`). When none matches, the details describe the first call. Dotted paths reach nested fields (`dscr.loan.interestRatePct`). Numbers within `tolerance` or `tolerance_pct` (default 0); anything else exact. `na` when no args are expected. |
-| `answer`        | Each key in `expected.answer` passes when any number in `finalText` is within tolerance. Asking a question when the case does not set `expect_question` fails here as "asked instead of answering". `na` when there is nothing to check. |
-| `question`      | Only when `expect_question` is true: passes when the model asked (judge `responseType` `asked_for_info`, or `askedQuestion` without the judge) and no tool was called.        |
-| `mentions`      | Fails when `finalText` contains a `must_not_mention` string (case-insensitive), or when the judge fails. `na` with neither.                                                    |
+| `answer`        | Each key in `expected.answer` passes when any number in `finalText` is within tolerance. Asking a question when the case does not set `expect_question` fails here as "asked instead of answering". `na` when there is nothing to check.                                                                                                                                                                                                                                        |
+| `question`      | Only when `expect_question` is true: passes when the model asked (judge `responseType` `asked_for_info`, or `askedQuestion` without the judge) and no tool was called.                                                                                                                                                                                                                                                                                                          |
+| `mentions`      | Fails when `finalText` contains a `must_not_mention` string (case-insensitive), or when the judge fails. `na` with neither.                                                                                                                                                                                                                                                                                                                                                     |
 
 A case with `accept_question: true` also passes when the model asked (as above, no tool calls): `question` is pass, every other dimension is `na`, no judge call is made, and the per-case table counts the run as `asked n`. When the model answers instead, the case grades as if the flag were absent.
 
@@ -101,7 +101,7 @@ The answer check reads every number in the final text. It strips `$` and thousan
 1. A header: date, agent and judge models, harnesses, runs per case, total cost and tokens (agent plus judge), pricing date, and why the run stopped early if it did.
 2. Pass rate by category: one row per category plus `all`, one column per harness, each cell `n/N (pct%)`.
 3. Per case: id, category, `evidence`, then per harness `passes/runs` with the failing dimensions.
-4. Failures: for each failed run, the case, harness, run number, grader details, and the first 300 characters of the final text. Use this to add entries to `docs/observed-failures.md`.
+4. Failures: for each failed run, the case, harness, run number, grader details, and the first 300 characters of the final text. Use this to add entries to `evals/observed-failures.md`.
 
 A results dir covers one agent model. To compare models, run each into its own dir and merge:
 

@@ -61,7 +61,7 @@ npx @modelcontextprotocol/inspector --cli node packages/mcp-server/dist/bin.js -
 
 ## Example prompts
 
-Each comes from an eval category in `docs/PRD.md`.
+Each comes from an eval category in `docs/prd.md`.
 
 1. Chaining (max offer, then stress test):
    "Fourplex in KC, asking 520k, rents about 1,150 a door. Taxes 6,800 a year, insurance 3,200. 25% down at 7.25%, 30 years. What's the most I can offer and still hit 1.25 DSCR? Then tell me how high rates can go before it breaks."

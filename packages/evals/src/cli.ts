@@ -30,7 +30,7 @@ export const paths = {
   results: resolve(repoRoot, 'packages/evals/results'),
   /** Committed reports, copied here by --publish. */
   reports: resolve(repoRoot, 'packages/evals/reports'),
-  systemPrompt: resolve(repoRoot, 'docs/agent/system-prompt.md'),
+  systemPrompt: resolve(repoRoot, 'prompts/agent-system.md'),
 };
 
 const pending: Partial<Record<HarnessName, string>> = { 'agent-ts': 'M4', 'agent-py': 'M5' };
@@ -228,7 +228,7 @@ export async function main(
   if (maxUsd !== undefined && estTotal > maxUsd)
     return fail(`estimate $${estTotal.toFixed(4)} exceeds EVAL_MAX_USD $${maxUsd.toFixed(2)}`);
   if (!deps.client && !env.ANTHROPIC_API_KEY)
-    return fail('ANTHROPIC_API_KEY is not set. See docs/secrets.md.');
+    return fail('ANTHROPIC_API_KEY is not set. See docs/guides/secrets.md.');
   const client = deps.client ?? new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
 
   const now = (deps.now ?? (() => new Date()))();

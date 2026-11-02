@@ -4,7 +4,7 @@ Phil is the engineer of record. Claude implements. The repo must show that split
 
 ## Claude does
 
-- Implement from `docs/PRD.md`, milestone by milestone, stopping for review after each.
+- Implement from `docs/prd.md`, milestone by milestone, stopping for review after each.
 - Work on a branch per PR. Small conventional commits. Each PR body has a "Choices" section with one line per non-obvious decision.
 - Run lint, format, typecheck, test, and build locally before pushing. Watch CI until green.
 - Write fixture workings in `docs/fixtures/` showing the arithmetic behind every asserted number, and assert those numbers in unit tests. Where a published reference value exists (for example a standard amortization payment), use it as the fixture.
